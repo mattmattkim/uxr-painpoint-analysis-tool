@@ -1,0 +1,27 @@
+Interview Transcript - SOW Process Pain Points
+Date: 2024-01-15
+Participant: Project Manager at Tech Company
+
+Interviewer: Can you walk me through your experience with creating Statements of Work?
+
+Participant: Sure. I'd say the biggest challenge we face is during the requirements gathering phase. We often get vague requests from clients like "we need a new system" without specific details about what they actually need. This leads to a lot of back-and-forth conversations that can take weeks.
+
+Interviewer: How does that impact your timeline?
+
+Participant: It's a major bottleneck. What should be a 2-3 day process often stretches to 2-3 weeks. And then when we finally get to the negotiation phase, clients sometimes change their minds about requirements, which means we have to go back and revise everything.
+
+Interviewer: What about the internal review process?
+
+Participant: That's another pain point. We don't have a standardized template, so every PM creates SOWs differently. When it goes to legal review, they always find issues because there's no consistency. Sometimes they'll reject an SOW because we forgot to include standard clauses about intellectual property or data security.
+
+Interviewer: How do you handle signature collection?
+
+Participant: It's honestly a nightmare. We're still using email and PDFs. Sometimes we need signatures from 5-6 different stakeholders, and tracking who has signed and who hasn't is all manual. I've had contracts delayed by weeks just waiting for one person's signature.
+
+Interviewer: Any issues during project execution?
+
+Participant: Yes, especially with tracking changes. When clients request changes mid-project, we struggle to document them properly. Our change order process is basically non-existent - we just send emails back and forth. This creates huge problems during the retrospective when we try to figure out why a project went over budget.
+
+Interviewer: What would help solve these issues?
+
+Participant: We desperately need standardized templates and a better way to track the entire SOW lifecycle. Also, having AI assist with drafting based on past successful SOWs would save us so much time. And please, something better than email for signature collection!

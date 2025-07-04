@@ -1,0 +1,27 @@
+Interview Transcript - Consultant's Perspective on SOW Challenges
+Date: 2024-02-20
+Participant: Independent Consultant
+
+Interviewer: Tell me about your experience with SOW creation as an independent consultant.
+
+Participant: The alignment phase is where I struggle most. As a solo consultant, I don't have a sales team or legal department to help me. When I'm trying to get all stakeholders aligned on scope and deliverables, I'm basically juggling multiple conversations across different channels - email, Slack, phone calls. It's easy for things to get lost.
+
+Interviewer: How do you currently manage the creation process?
+
+Participant: I have a few Word templates that I've built over the years, but they're pretty basic. The real issue is customization. Every client has unique needs, and I spend hours tweaking the language to match their requirements. I'm not a lawyer, so I'm always worried I'm missing something important in the terms and conditions.
+
+Interviewer: What happens during client presentations?
+
+Participant: This is actually where I lose a lot of deals. I create these detailed SOWs, but when I present them, clients get overwhelmed by the legal language and technical details. I need a better way to visualize the project timeline and deliverables. Right now, I'm just walking them through a dense document, and I can see their eyes glaze over.
+
+Interviewer: How about the negotiation phase?
+
+Participant: It's exhausting. Clients always want to reduce scope but keep the same timeline, or add requirements without adjusting the budget. Without a good way to show the impact of these changes, negotiations become very subjective. I need data to back up my position, but I don't have analytics on past projects readily available.
+
+Interviewer: Any challenges with handoff to delivery?
+
+Participant: Huge problem area. Once the SOW is signed, I have to translate all those requirements into an actual project plan. But the SOW is a legal document, not a project document. I often find myself re-reading the SOW trying to figure out what I actually committed to. There's definitely a disconnect between what we sell and what we need to deliver.
+
+Interviewer: What about retrospectives?
+
+Participant: I rarely do formal retrospectives because I don't have the data. I know some projects went well and others didn't, but I can't easily analyze why. Was it the requirements? The timeline? The resources? Without good tracking throughout the project, retrospectives are just based on gut feeling rather than data.

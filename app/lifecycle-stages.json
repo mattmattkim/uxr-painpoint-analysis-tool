@@ -1,0 +1,64 @@
+{
+  "stages": [
+    {
+      "id": "requirements",
+      "number": 1,
+      "title": "Requirements Gathering",
+      "subtitle": "Initial client meetings, technical discovery, scope definition"
+    },
+    {
+      "id": "alignment",
+      "number": 2,
+      "title": "Proposal",
+      "subtitle": "High-level scope definition, stakeholder alignment"
+    },
+    {
+      "id": "creation",
+      "number": 3,
+      "title": "Initial SOW Creation",
+      "subtitle": "First draft development, template selection"
+    },
+    {
+      "id": "review",
+      "number": 4,
+      "title": "Internal Review",
+      "subtitle": "Technical review, legal review, pricing validation"
+    },
+    {
+      "id": "negotiation",
+      "number": 5,
+      "title": "Negotiation & Revisions",
+      "subtitle": "Multiple rounds of client feedback and edits"
+    },
+    {
+      "id": "signature",
+      "number": 6,
+      "title": "Signature Collection",
+      "subtitle": "Approval workflows, contract execution"
+    },
+    {
+      "id": "procurement",
+      "number": 7,
+      "title": "Procurement",
+      "subtitle": "Contract execution, procurement"
+    },
+    {
+      "id": "handoff",
+      "number": 8,
+      "title": "Handoff to Delivery",
+      "subtitle": "Project kickoff, team transitions"
+    },
+    {
+      "id": "tracking",
+      "number": 9,
+      "title": "Project Tracking",
+      "subtitle": "Status monitoring, milestone tracking"
+    },
+    {
+      "id": "retrospective",
+      "number": 10,
+      "title": "Retrospective",
+      "subtitle": "Profitability analysis"
+    }
+  ]
+}
