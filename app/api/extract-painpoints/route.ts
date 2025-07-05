@@ -88,6 +88,7 @@ ${transcript}`;
           content: prompt + '\n\nRemember to return valid JSON with a "painPoints" array.'
         }
       ],
+      response_format: { type: "json_object" }
     }),
   });
 
@@ -102,9 +103,8 @@ ${transcript}`;
   let result;
   try {
     const content = data.choices[0].message.content;
-    // Remove any potential markdown code blocks
-    const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    result = JSON.parse(cleanContent);
+    // With response_format, OpenAI guarantees valid JSON, so we can parse directly
+    result = JSON.parse(content);
   } catch (error) {
     console.error('Failed to parse OpenAI response:', data.choices[0].message.content);
     console.error('Parse error:', error);
