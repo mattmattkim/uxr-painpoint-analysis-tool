@@ -602,6 +602,12 @@ body {
   color: var(--gray-900);
 }
 
+.button-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .drop-zone {
   border: 2px dashed transparent;
   border-radius: 12px;
@@ -924,10 +930,128 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
 
 .analysis-section {
   margin-bottom: 48px;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .analysis-section:last-child {
   margin-bottom: 0;
+}
+
+/* PDF-specific keep-together class */
+.pdf-keep-together {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  page-break-before: avoid !important;
+  break-before: avoid !important;
+}
+
+/* Ensure theme cards don't split */
+.pdf-keep-together .theme-card {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* Ensure severity rows stay together */
+.pdf-keep-together .severity-row {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* Ensure root cause cards stay together */
+.pdf-keep-together .root-cause-card {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* Ensure priority matrix stays as one unit */
+.pdf-keep-together .matrix-grid {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* Ensure priority legend items stay together */
+.pdf-keep-together .priority-legend {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* Ensure recommendation cards don't split */
+.pdf-keep-together .recommendation-card {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* Remove any padding before sections */
+.pdf-keep-together:before {
+  content: none;
+}
+
+/* Individual elements that should never break */
+.pdf-no-break {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  display: block !important;
+}
+
+/* Media query for print/PDF generation */
+@media print {
+  .analysis-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Ensure headers stay with their content */
+  h3 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+  
+  /* Keep grid items together */
+  .theme-card,
+  .recommendation-card,
+  .root-cause-card,
+  .priority-item {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Keep the entire priority matrix together */
+  .priority-matrix {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Keep priority legend together */
+  .priority-legend {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: block !important;
+  }
+  
+  /* Keep priority items as blocks */
+  .priority-item {
+    display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 12px;
+  }
+  
+  .priority-item > * {
+    display: inline-block !important;
+    vertical-align: top;
+  }
+  
+  /* Keep severity chart together */
+  .severity-chart {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Remove automatic page breaks before sections */
+  .analysis-section {
+    page-break-before: avoid;
+  }
 }
 
 .analysis-section h3 {
@@ -960,6 +1084,8 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .theme-card {
@@ -1031,6 +1157,8 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
   padding: 20px;
   border-radius: 12px;
   border: 1px solid var(--gray-200);
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .severity-row {
@@ -1102,6 +1230,8 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
   border-radius: 12px;
   padding: 20px;
   box-shadow: var(--shadow-sm);
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .cause-header {
@@ -1136,6 +1266,8 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
   padding: 24px;
   border-radius: 12px;
   border: 1px solid var(--gray-200);
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .matrix-grid {
@@ -1292,13 +1424,25 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
 
 .priority-legend {
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
 }
 
 .priority-item {
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
+  position: relative;
+}
+
+.priority-item-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .item-number {
@@ -1341,6 +1485,8 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
   padding: 20px;
   box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .rec-header {

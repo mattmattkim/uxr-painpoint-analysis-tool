@@ -12,6 +12,7 @@ const stages: StageInfo[] = lifecycleConfig.stages as StageInfo[];
 const STORAGE_KEY_PAIN_POINTS = 'uxr-pain-points';
 const STORAGE_KEY_ANALYSIS = 'uxr-analysis';
 const STORAGE_KEY_MODEL = 'uxr-selected-model';
+const STORAGE_KEY_ANALYSIS_HASH = 'uxr-analysis-hash';
 
 export default function Home() {
   // Initialize with all stages from lifecycle config
@@ -32,10 +33,37 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<PainPointAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [processingTranscripts, setProcessingTranscripts] = useState<string[]>([]);
+  const [processingTranscripts, setProcessingTranscripts] = useState<Array<{id: string; name: string}>>([]);
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedModel, setSelectedModel] = useState<string>('gpt-4-turbo-preview');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [lastAnalysisHash, setLastAnalysisHash] = useState<string | null>(null);
+
+  // Generate a hash of pain points data to detect changes
+  const generatePainPointsHash = (data: Record<Stage, PainPoint[]>): string => {
+    const allPainPoints: PainPoint[] = [];
+    Object.values(data).forEach(stagePainPoints => {
+      allPainPoints.push(...stagePainPoints);
+    });
+    
+    // Sort by ID to ensure consistent hash
+    const sortedPainPoints = allPainPoints.sort((a, b) => 
+      (a.id || '').localeCompare(b.id || '')
+    );
+    
+    // Create a simple hash based on IDs, stages, severity, and titles
+    const hashString = sortedPainPoints
+      .map(pp => `${pp.id}|${pp.stage}|${pp.severity}|${pp.title}`)
+      .join('||');
+    
+    return hashString;
+  };
+
+  // Check if analysis needs to be rerun
+  const needsNewAnalysis = (): boolean => {
+    const currentHash = generatePainPointsHash(painPointsByStage);
+    return currentHash !== lastAnalysisHash || !analysis;
+  };
 
   // Save to localStorage
   const saveToLocalStorage = (data: Record<Stage, PainPoint[]>) => {
@@ -71,6 +99,11 @@ export default function Home() {
       if (savedAnalysis) {
         const parsedAnalysis = JSON.parse(savedAnalysis);
         setAnalysis(parsedAnalysis);
+      }
+
+      const savedHash = localStorage.getItem(STORAGE_KEY_ANALYSIS_HASH);
+      if (savedHash) {
+        setLastAnalysisHash(savedHash);
       }
 
       const savedModel = localStorage.getItem(STORAGE_KEY_MODEL);
@@ -130,7 +163,7 @@ export default function Home() {
 
   const handleFileUpload = async (file: File) => {
     const fileId = `${file.name}-${Date.now()}`;
-    setProcessingTranscripts(prev => [...prev, fileId]);
+    setProcessingTranscripts(prev => [...prev, {id: fileId, name: file.name}]);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -167,11 +200,14 @@ export default function Home() {
         return updatedState;
       });
       setIsGrouped(false);
+      // Invalidate cached analysis when new pain points are added
+      setLastAnalysisHash(null);
+      localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
     } catch (error) {
       console.error('Error uploading transcript:', error);
       alert('Failed to process transcript. Please make sure you have configured your OpenAI API key.');
     } finally {
-      setProcessingTranscripts(prev => prev.filter(id => id !== fileId));
+      setProcessingTranscripts(prev => prev.filter(t => t.id !== fileId));
     }
   };
 
@@ -186,9 +222,11 @@ export default function Home() {
       try {
         localStorage.removeItem(STORAGE_KEY_PAIN_POINTS);
         localStorage.removeItem(STORAGE_KEY_ANALYSIS);
+        localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
       } catch (error) {
         console.error('Failed to clear localStorage:', error);
       }
+      setLastAnalysisHash(null);
     }
   };
 
@@ -222,6 +260,9 @@ export default function Home() {
       ...prev,
       [painPoint.stage]: [...prev[painPoint.stage as Stage], painPoint],
     }));
+    // Invalidate cached analysis
+    setLastAnalysisHash(null);
+    localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
   };
 
   const deletePainPoint = (id: string, stage: Stage) => {
@@ -229,6 +270,9 @@ export default function Home() {
       ...prev,
       [stage]: prev[stage].filter(pp => pp.id !== id),
     }));
+    // Invalidate cached analysis
+    setLastAnalysisHash(null);
+    localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -270,6 +314,9 @@ export default function Home() {
           ];
           return newState;
         });
+        // Invalidate cached analysis when pain point is moved
+        setLastAnalysisHash(null);
+        localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
       }
       draggedPainPoint.current = null;
     }
@@ -280,7 +327,7 @@ export default function Home() {
     return [];
   };
 
-  const analyzePainPoints = async () => {
+  const analyzePainPoints = async (forceRegenerate: boolean = false) => {
     // Collect all pain points
     const allPainPoints: PainPoint[] = [];
     Object.values(painPointsByStage).forEach(stagePainPoints => {
@@ -289,6 +336,12 @@ export default function Home() {
 
     if (allPainPoints.length === 0) {
       alert('No pain points to analyze. Please add or upload pain points first.');
+      return;
+    }
+
+    // Check if we can use cached analysis (unless force regenerate is requested)
+    if (!forceRegenerate && !needsNewAnalysis()) {
+      setIsAnalysisModalOpen(true);
       return;
     }
 
@@ -310,6 +363,11 @@ export default function Home() {
 
       const { analysis } = await response.json();
       setAnalysis(analysis);
+      
+      // Save the hash of current pain points
+      const currentHash = generatePainPointsHash(painPointsByStage);
+      setLastAnalysisHash(currentHash);
+      localStorage.setItem(STORAGE_KEY_ANALYSIS_HASH, currentHash);
     } catch (error) {
       console.error('Error analyzing pain points:', error);
       alert('Failed to analyze pain points. Please try again.');
@@ -326,7 +384,13 @@ export default function Home() {
         {processingTranscripts.length > 0 && (
           <div className="processing-status">
             <div className="spinner-small"></div>
-            <span>Processing {processingTranscripts.length} transcript{processingTranscripts.length > 1 ? 's' : ''}...</span>
+            <span>
+              Processing {processingTranscripts.length} transcript{processingTranscripts.length > 1 ? 's' : ''}: 
+              {processingTranscripts.length <= 3 
+                ? processingTranscripts.map(t => t.name).join(', ')
+                : `${processingTranscripts.slice(0, 2).map(t => t.name).join(', ')} and ${processingTranscripts.length - 2} more...`
+              }
+            </span>
           </div>
         )}
       </div>
@@ -339,10 +403,18 @@ export default function Home() {
           <input
             type="file"
             accept=".txt,.pdf,.docx"
+            multiple
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFileUpload(file);
-              e.target.value = ''; // Clear input to allow re-uploading same file
+              const files = e.target.files;
+              if (files) {
+                // Limit to 10 files at once to prevent overwhelming the API
+                const fileArray = Array.from(files).slice(0, 10);
+                if (files.length > 10) {
+                  alert('Maximum 10 files can be uploaded at once. Only the first 10 will be processed.');
+                }
+                fileArray.forEach(file => handleFileUpload(file));
+              }
+              e.target.value = ''; // Clear input to allow re-uploading same files
             }}
             style={{ display: 'none' }}
             id="transcript-upload"
@@ -351,14 +423,32 @@ export default function Home() {
             htmlFor="transcript-upload" 
             className="btn btn-secondary"
           >
-            Upload Transcript
+            Upload Transcript(s)
           </label>
           <button className="btn btn-secondary" onClick={exportData}>
             Export Data
           </button>
-          <button className="btn btn-primary" onClick={analyzePainPoints}>
-            Analyze Pain Points
-          </button>
+          <div className="button-group">
+            <button 
+              className={needsNewAnalysis() ? "btn btn-primary" : "btn btn-secondary"} 
+              onClick={() => analyzePainPoints(false)}
+              title={!needsNewAnalysis() 
+                ? "Using cached analysis - no changes detected" 
+                : "Analyze pain points"}
+            >
+              {needsNewAnalysis() ? "Analyze Pain Points" : "View Analysis (Cached)"}
+            </button>
+            {!needsNewAnalysis() && (
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => analyzePainPoints(true)}
+                title="Force regenerate analysis with current pain points"
+                style={{ marginLeft: '4px' }}
+              >
+                ↻ Regenerate
+              </button>
+            )}
+          </div>
           <button className="btn btn-secondary" onClick={clearAll}>
             Clear All
           </button>
