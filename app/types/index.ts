@@ -73,11 +73,32 @@ export interface Recommendation {
   implementationTime: 'quick-win' | 'short-term' | 'long-term';
 }
 
+export interface SolutionTool {
+  id: string;
+  name: string;
+  category: 'automation' | 'collaboration' | 'analytics' | 'ai-ml' | 'integration' | 'document-mgmt';
+  description: string;
+  maturity: 'emerging' | 'established' | 'mature';
+  examples?: string[];
+}
+
+export interface SolutionRecommendation {
+  title: string;
+  description: string;
+  tools: string[]; // Tool IDs from lifecycle-stages.json
+  complexity: number; // 1-5 scale
+  businessValue: number; // 1-5 scale
+  implementationTime: string;
+  targetPainPoints: string[];
+  estimatedROI?: string;
+}
+
 export interface PainPointAnalysis {
   themes: Theme[];
   severityDistribution: SeverityByStage[];
   rootCauses: RootCause[];
   priorityMatrix: PriorityItem[];
   recommendations: Recommendation[];
+  solutionMatrix: SolutionRecommendation[];
   summary: string;
 }

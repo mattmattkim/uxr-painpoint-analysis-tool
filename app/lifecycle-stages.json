@@ -60,5 +60,103 @@
       "title": "Retrospective",
       "subtitle": "Profitability analysis"
     }
+  ],
+  "tools": [
+    {
+      "id": "workflow-automation",
+      "name": "Workflow Automation Platform",
+      "category": "automation",
+      "description": "Automated workflow engines for routing, approvals, and task orchestration",
+      "maturity": "established",
+      "examples": ["Zapier", "Power Automate", "n8n", "Apache Airflow"]
+    },
+    {
+      "id": "doc-generation",
+      "name": "Document Generation Engine",
+      "category": "automation",
+      "description": "Template-based document generation with dynamic content insertion",
+      "maturity": "mature",
+      "examples": ["PandaDoc", "DocuSign Gen", "Templafy", "Document360"]
+    },
+    {
+      "id": "ai-requirements",
+      "name": "AI Requirements Analysis",
+      "category": "ai-ml",
+      "description": "Natural language processing for requirement extraction and analysis",
+      "maturity": "emerging",
+      "examples": ["GPT-4", "Claude", "Custom NLP models", "IBM Watson"]
+    },
+    {
+      "id": "collab-editing",
+      "name": "Real-time Collaborative Editing",
+      "category": "collaboration",
+      "description": "Multi-user simultaneous editing with version control",
+      "maturity": "mature",
+      "examples": ["Google Docs", "Office 365", "Confluence", "Notion"]
+    },
+    {
+      "id": "version-control",
+      "name": "Document Version Control",
+      "category": "collaboration",
+      "description": "Git-like version control for documents with diff tracking",
+      "maturity": "established",
+      "examples": ["SharePoint", "Box", "Dropbox Business", "Git-based solutions"]
+    },
+    {
+      "id": "analytics-dashboard",
+      "name": "Analytics & Tracking Dashboard",
+      "category": "analytics",
+      "description": "Real-time metrics, KPIs, and profitability tracking",
+      "maturity": "established",
+      "examples": ["Tableau", "Power BI", "Looker", "Custom dashboards"]
+    },
+    {
+      "id": "esignature",
+      "name": "E-Signature Platform",
+      "category": "document-mgmt",
+      "description": "Digital signature collection with audit trails",
+      "maturity": "mature",
+      "examples": ["DocuSign", "Adobe Sign", "HelloSign", "PandaDoc"]
+    },
+    {
+      "id": "crm-integration",
+      "name": "CRM Integration Layer",
+      "category": "integration",
+      "description": "Bidirectional sync with CRM systems for data consistency",
+      "maturity": "mature",
+      "examples": ["Salesforce", "HubSpot", "Microsoft Dynamics", "Pipedrive"]
+    },
+    {
+      "id": "ai-insights",
+      "name": "AI-Powered Insights Engine",
+      "category": "ai-ml",
+      "description": "Pattern recognition and predictive analytics for SOW optimization",
+      "maturity": "emerging",
+      "examples": ["Custom ML models", "Azure ML", "AWS SageMaker", "Google AI Platform"]
+    },
+    {
+      "id": "template-library",
+      "name": "Smart Template Library",
+      "category": "document-mgmt",
+      "description": "Intelligent template selection based on project characteristics",
+      "maturity": "established",
+      "examples": ["Templafy", "PandaDoc Templates", "Custom repositories", "SharePoint libraries"]
+    },
+    {
+      "id": "communication-hub",
+      "name": "Unified Communication Hub",
+      "category": "collaboration",
+      "description": "Centralized communication with clients and stakeholders",
+      "maturity": "mature",
+      "examples": ["Slack", "Microsoft Teams", "Zoom", "Asana"]
+    },
+    {
+      "id": "approval-engine",
+      "name": "Smart Approval Routing",
+      "category": "automation",
+      "description": "Intelligent routing based on thresholds and business rules",
+      "maturity": "established",
+      "examples": ["ServiceNow", "Nintex", "K2", "Custom workflows"]
+    }
   ]
 }

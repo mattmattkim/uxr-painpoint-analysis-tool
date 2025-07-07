@@ -50,10 +50,16 @@ ${points.map(pp => `- [ID: ${pp.id}] [${pp.severity}] ${pp.title}: ${pp.details 
     })
     .join('\n');
 
+  // Get available tools from lifecycle config
+  const availableTools = lifecycleConfig.tools || [];
+  
   const prompt = `As a UX research expert, analyze the following pain points from a SOW (Statement of Work) lifecycle process and provide comprehensive insights.
 
 Pain Points by Stage:
 ${painPointsSummary}
+
+Available Tools and Technologies for Solutions:
+${availableTools.map(tool => `- ${tool.id}: ${tool.name} (${tool.category}) - ${tool.description}`).join('\n')}
 
 Please provide a detailed analysis in the following JSON format:
 {
@@ -102,6 +108,18 @@ Please provide a detailed analysis in the following JSON format:
       "implementationTime": "quick-win|short-term|long-term"
     }
   ],
+  "solutionMatrix": [
+    {
+      "title": "Solution title",
+      "description": "How this solution addresses pain points using specific tools",
+      "tools": ["tool_id1", "tool_id2"], // Use tool IDs from the available tools list above
+      "complexity": number (1.0-5.0 with decimals, where 1=simple, 5=very complex),
+      "businessValue": number (1.0-5.0 with decimals, where 1=low value, 5=high value),
+      "implementationTime": "1-3 months|3-6 months|6-12 months|12+ months",
+      "targetPainPoints": ["painPointId1", "painPointId2"],
+      "estimatedROI": "Expected return on investment description"
+    }
+  ],
   "summary": "Executive summary of the analysis (2-3 paragraphs)"
 }
 
@@ -131,7 +149,19 @@ IMPORTANT for Priority Matrix:
     - Effort: vary between 3.2 to 4.9 (e.g., 3.2, 3.5, 3.9, 4.2, 4.5, 4.7, 4.9)
 - CRITICAL: Items should look naturally scattered, NOT lined up or clustered at edges
 - Mix values randomly - don't follow a pattern or sequence
-- Some items can be near quadrant centers (e.g., impact 2.5, effort 2.5)`;
+- Some items can be near quadrant centers (e.g., impact 2.5, effort 2.5)
+
+IMPORTANT for Solution Matrix:
+- Create INNOVATIVE combinations of tools to solve pain points
+- Focus on SYNERGIES between different tool categories
+- Distribute solutions across the 2x2 matrix:
+  * Quick Tech Wins (top-left): High value (3.5-5.0), Low complexity (1.0-2.5)
+  * Strategic Initiatives (top-right): High value (3.5-5.0), High complexity (3.5-5.0)
+  * Nice-to-Haves (bottom-left): Low value (1.0-2.5), Low complexity (1.0-2.5)
+  * Complex Low-Value (bottom-right): Low value (1.0-2.5), High complexity (3.5-5.0)
+- Ensure natural distribution with decimal values (e.g., 2.3, 3.7, 4.1)
+- Create 8-12 solution recommendations that leverage the available tools
+- Focus on practical, implementable solutions`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -185,6 +215,7 @@ IMPORTANT for Priority Matrix:
       rootCauses: [],
       priorityMatrix: [],
       recommendations: [],
+      solutionMatrix: [],
       summary: "Analysis failed to complete. Please try again."
     };
   }
