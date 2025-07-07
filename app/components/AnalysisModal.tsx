@@ -40,6 +40,19 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
     }
   };
 
+  const getSolutionColor = (businessValue: number, complexity: number) => {
+    // Quick Tech Wins (High Value, Low Complexity) - Green
+    if (businessValue >= 3.5 && complexity <= 2.5) return '#10b981';
+    // Strategic Initiatives (High Value, High Complexity) - Blue
+    if (businessValue >= 3.5 && complexity >= 3.5) return '#3b82f6';
+    // Nice-to-Haves (Low Value, Low Complexity) - Gray
+    if (businessValue <= 2.5 && complexity <= 2.5) return '#6b7280';
+    // Complex Low-Value (Low Value, High Complexity) - Red
+    if (businessValue <= 2.5 && complexity >= 3.5) return '#dc2626';
+    // Middle ground - Orange
+    return '#f59e0b';
+  };
+
   const generatePDF = async () => {
     if (!analysis) return;
 
@@ -366,6 +379,87 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
                         <div className="priority-item-content">
                           <strong>{item.title}</strong>
                           <p>{item.rationale}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* Solution Matrix */}
+              <section className="analysis-section pdf-keep-together">
+                <h3>Technology Solution Matrix</h3>
+                <div className="solution-matrix pdf-no-break">
+                  <div className="solution-grid pdf-no-break">
+                    <div className="solution-axes">
+                      <div className="y-axis">
+                        <span className="axis-label">High Business Value</span>
+                        <div className="axis-line"></div>
+                        <span className="axis-label">Low Business Value</span>
+                      </div>
+                      <div className="x-axis">
+                        <span className="axis-label">Low Complexity</span>
+                        <div className="axis-line"></div>
+                        <span className="axis-label">High Complexity</span>
+                      </div>
+                    </div>
+                    <div className="solution-quadrants">
+                      <div className="quadrant q1">
+                        <span className="quadrant-label">Quick Tech Wins</span>
+                      </div>
+                      <div className="quadrant q2">
+                        <span className="quadrant-label">Strategic Initiatives</span>
+                      </div>
+                      <div className="quadrant q3">
+                        <span className="quadrant-label">Nice-to-Haves</span>
+                      </div>
+                      <div className="quadrant q4">
+                        <span className="quadrant-label">Complex Low-Value</span>
+                      </div>
+                      {analysis.solutionMatrix?.map((solution, idx) => (
+                        <div 
+                          key={idx}
+                          className="solution-item"
+                          style={{
+                            left: `${((solution.complexity - 1) / 4) * 100}%`,
+                            top: `${((5 - solution.businessValue) / 4) * 100}%`,
+                            backgroundColor: getSolutionColor(solution.businessValue, solution.complexity)
+                          }}
+                          title={`${solution.title}\n${solution.description}`}
+                        >
+                          <span className="solution-item-label">{idx + 1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="solution-legend">
+                    {analysis.solutionMatrix?.map((solution, idx) => (
+                      <div key={idx} className="solution-item-detail pdf-no-break">
+                        <span className="item-number" style={{ backgroundColor: getSolutionColor(solution.businessValue, solution.complexity) }}>
+                          {idx + 1}
+                        </span>
+                        <div className="solution-item-content">
+                          <strong>{solution.title}</strong>
+                          <p className="solution-description">{solution.description}</p>
+                          <div className="solution-meta">
+                            <div className="solution-tools">
+                              <strong>Tools:</strong>
+                              {solution.tools.map(toolId => {
+                                const tool = lifecycleConfig.tools?.find(t => t.id === toolId);
+                                return tool ? (
+                                  <span key={toolId} className="tool-tag">{tool.name}</span>
+                                ) : null;
+                              })}
+                            </div>
+                            <div className="solution-timing">
+                              <span className="timing-badge">{solution.implementationTime}</span>
+                            </div>
+                          </div>
+                          {solution.estimatedROI && (
+                            <div className="solution-roi">
+                              <strong>ROI:</strong> {solution.estimatedROI}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
