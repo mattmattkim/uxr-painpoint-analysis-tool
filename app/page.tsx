@@ -8,6 +8,7 @@ import AnalysisModal from './components/AnalysisModal';
 import PersonaCard from './components/PersonaCard';
 import PersonaModal from './components/PersonaModal';
 import lifecycleConfig from './lifecycle-stages.json';
+import { mergePersonas, mergePersonasWithMapping, manualMergePersonas, ensureUniquePersonaIds, ensurePersonaColors } from './utils/personas';
 
 const stages: StageInfo[] = lifecycleConfig.stages as StageInfo[];
 
@@ -36,6 +37,8 @@ export default function Home() {
   
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<Persona | null>(null);
   
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [analysis, setAnalysis] = useState<PainPointAnalysis | null>(null);
@@ -106,7 +109,7 @@ export default function Home() {
       const savedPersonas = localStorage.getItem(STORAGE_KEY_PERSONAS);
       if (savedPersonas) {
         const parsedPersonas = JSON.parse(savedPersonas);
-        setPersonas(parsedPersonas);
+        setPersonas(ensurePersonaColors(ensureUniquePersonaIds(parsedPersonas)));
       }
 
       const savedAnalysis = localStorage.getItem(STORAGE_KEY_ANALYSIS);
@@ -193,6 +196,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('model', selectedModel);
+      formData.append('existingPersonas', JSON.stringify(personas));
 
       const response = await fetch('/api/extract-painpoints', {
         method: 'POST',
@@ -205,20 +209,39 @@ export default function Home() {
 
       const { painPoints, personas: extractedPersonas } = await response.json();
       
-      // Add source information with filename
+      // Debug logging
+      console.log('Extracted from API:', {
+        personas: extractedPersonas?.map((p: Persona) => ({ id: p.id, name: p.name })),
+        painPoints: painPoints?.map((pp: PainPoint) => ({ title: pp.title, personaId: pp.personaId }))
+      });
+      
+      // Merge personas with existing ones and track ID changes
+      let finalPersonas = personas;
+      let personaIdMap: Record<string, string> = {};
+      
+      if (extractedPersonas && extractedPersonas.length > 0) {
+        // Use the new mergePersonasWithMapping function to get ID mappings
+        const mergeResult = mergePersonasWithMapping(personas, extractedPersonas);
+        finalPersonas = ensureUniquePersonaIds(mergeResult.personas);
+        personaIdMap = mergeResult.idMapping;
+        
+        setPersonas(finalPersonas);
+      }
+      
+      // Add source information with filename and update personaIds
       const enhancedPainPoints = painPoints.map((pp: PainPoint) => ({
         ...pp,
-        source: `${pp.source} (${file.name})`
+        source: `${pp.source} (${file.name})`,
+        // Update personaId if it was remapped during merge
+        personaId: pp.personaId ? (personaIdMap[pp.personaId] || pp.personaId) : undefined
       }));
       
-      // Merge new personas with existing ones
-      if (extractedPersonas && extractedPersonas.length > 0) {
-        setPersonas((prevPersonas) => {
-          const existingIds = new Set(prevPersonas.map(p => p.id));
-          const newPersonas = extractedPersonas.filter((p: Persona) => !existingIds.has(p.id));
-          return [...prevPersonas, ...newPersonas];
-        });
-      }
+      // Debug logging after mapping
+      console.log('After persona ID mapping:', {
+        personaIdMap,
+        finalPersonas: finalPersonas.map(p => ({ id: p.id, name: p.name })),
+        enhancedPainPoints: enhancedPainPoints.map(pp => ({ title: pp.title, personaId: pp.personaId }))
+      });
       
       // Merge new pain points with existing ones
       setPainPointsByStage((prevState) => {
@@ -296,7 +319,7 @@ export default function Home() {
         
         // Import personas
         if (data.personas) {
-          setPersonas(data.personas);
+          setPersonas(ensurePersonaColors(ensureUniquePersonaIds(data.personas)));
         }
         
         // Import pain points
@@ -406,7 +429,7 @@ export default function Home() {
     if (editingPersona) {
       setPersonas(prev => prev.map(p => p.id === persona.id ? persona : p));
     } else {
-      setPersonas(prev => [...prev, persona]);
+      setPersonas(prev => ensureUniquePersonaIds([...prev, persona]));
     }
     setEditingPersona(null);
   };
@@ -439,6 +462,52 @@ export default function Home() {
         ? prev.filter(id => id !== personaId)
         : [...prev, personaId]
     );
+  };
+
+  const startMergeMode = (persona: Persona) => {
+    setMergeTarget(persona);
+    setMergeMode(true);
+  };
+
+  const cancelMergeMode = () => {
+    setMergeMode(false);
+    setMergeTarget(null);
+  };
+
+  const mergePersonasWith = (secondaryPersona: Persona) => {
+    if (!mergeTarget) return;
+    
+    if (confirm(`Are you sure you want to merge "${secondaryPersona.name}" into "${mergeTarget.name}"? This will combine their information and cannot be undone.`)) {
+      const mergedPersona = manualMergePersonas(mergeTarget, secondaryPersona);
+      
+      // Update personas list
+      setPersonas(prev => prev
+        .map(p => p.id === mergeTarget.id ? mergedPersona : p)
+        .filter(p => p.id !== secondaryPersona.id)
+      );
+      
+      // Update pain points to use merged persona ID
+      setPainPointsByStage(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(stage => {
+          updated[stage as Stage] = updated[stage as Stage].map(pp => 
+            pp.personaId === secondaryPersona.id 
+              ? { ...pp, personaId: mergeTarget.id }
+              : pp
+          );
+        });
+        return updated;
+      });
+      
+      // Update selected personas
+      setSelectedPersonaIds(prev => 
+        prev.includes(secondaryPersona.id)
+          ? prev.filter(id => id !== secondaryPersona.id)
+          : prev
+      );
+      
+      cancelMergeMode();
+    }
   };
 
   const getFilteredPainPoints = (stagePainPoints: PainPoint[]) => {
@@ -532,16 +601,35 @@ export default function Home() {
           <div className="personas-section">
             <div className="personas-header">
               <h2>User Personas</h2>
-              <button 
-                className="btn btn-secondary btn-small"
-                onClick={() => {
-                  setEditingPersona(null);
-                  setIsPersonaModalOpen(true);
-                }}
-              >
-                + Add Persona
-              </button>
+              <div className="persona-actions">
+                <button 
+                  className="btn btn-secondary btn-small"
+                  onClick={() => {
+                    setEditingPersona(null);
+                    setIsPersonaModalOpen(true);
+                  }}
+                >
+                  + Add Persona
+                </button>
+                {personas.length > 1 && (
+                  <button 
+                    className={`btn btn-small ${mergeMode ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={mergeMode ? cancelMergeMode : () => setMergeMode(true)}
+                  >
+                    {mergeMode ? 'Cancel Merge' : 'Merge Personas'}
+                  </button>
+                )}
+              </div>
             </div>
+            {mergeMode && (
+              <div className="merge-instructions">
+                {mergeTarget ? (
+                  <p>Select a persona to merge into <strong>{mergeTarget.name}</strong>:</p>
+                ) : (
+                  <p>Click on a persona to select it as the merge target, then click on another persona to merge them.</p>
+                )}
+              </div>
+            )}
             <div className="personas-grid">
               {personas.map(persona => (
                 <PersonaCard
@@ -549,9 +637,15 @@ export default function Home() {
                   persona={persona}
                   painPointCount={getPersonaPainPointCount(persona.id)}
                   isSelected={selectedPersonaIds.includes(persona.id)}
-                  onSelect={() => togglePersonaSelection(persona.id)}
+                  onSelect={() => mergeMode && !mergeTarget 
+                    ? startMergeMode(persona)
+                    : togglePersonaSelection(persona.id)}
                   onEdit={() => handleEditPersona(persona)}
                   onDelete={() => handleDeletePersona(persona.id)}
+                  onMerge={mergeMode && mergeTarget?.id !== persona.id 
+                    ? () => mergePersonasWith(persona)
+                    : undefined}
+                  showMergeButton={mergeMode && mergeTarget?.id !== persona.id}
                 />
               ))}
             </div>
@@ -685,6 +779,7 @@ export default function Home() {
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
               draggedElement={draggedElement}
+              personas={personas}
               setDraggedElement={(el) => {
                 setDraggedElement(el);
                 if (el) {
@@ -704,7 +799,6 @@ export default function Home() {
               }}
               isGrouped={isGrouped}
               onDeletePainPoint={deletePainPoint}
-              personas={personas}
             />
           ))}
         </div>
@@ -772,6 +866,7 @@ export default function Home() {
         }}
         onSubmit={handleAddPersona}
         persona={editingPersona}
+        existingPersonas={personas}
       />
       
       <AnalysisModal

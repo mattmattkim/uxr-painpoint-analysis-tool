@@ -96,16 +96,28 @@ export default function LifecycleStage({
             />
           ))
         ) : (
-          painPoints.map((painPoint) => (
-            <PainPointCard
-              key={painPoint.id}
-              painPoint={painPoint}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDelete={(id) => onDeletePainPoint(id, stage.id)}
-              persona={personas.find(p => p.id === painPoint.personaId)}
-            />
-          ))
+          painPoints.map((painPoint) => {
+            const persona = personas.find(p => p.id === painPoint.personaId);
+            
+            // Debug logging only for pain points with personaId
+            if (painPoint.personaId && !persona) {
+              console.warn(`Persona not found for pain point "${painPoint.title}":`, {
+                personaId: painPoint.personaId,
+                availablePersonas: personas.map(p => ({ id: p.id, name: p.name }))
+              });
+            }
+            
+            return (
+              <PainPointCard
+                key={painPoint.id}
+                painPoint={painPoint}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDelete={(id) => onDeletePainPoint(id, stage.id)}
+                persona={persona}
+              />
+            );
+          })
         )}
       </div>
       <div
