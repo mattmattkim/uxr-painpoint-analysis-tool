@@ -1,3 +1,22 @@
+export interface Persona {
+  id: string;
+  name: string;
+  role: string;
+  description?: string;
+  goals?: string[];
+  painPoints?: string[];
+  demographics?: {
+    age?: string;
+    experience?: string;
+    department?: string;
+    companySize?: string;
+  };
+  avatar?: {
+    color: string;
+    initials: string;
+  };
+}
+
 export interface PainPoint {
   id?: string;
   title: string;
@@ -5,6 +24,7 @@ export interface PainPoint {
   severity: 'high' | 'medium' | 'low';
   source?: string;
   stage: string;
+  personaId?: string;
 }
 
 export interface PainPointWithCount {
@@ -65,13 +85,7 @@ export interface PriorityItem {
   rationale: string;
 }
 
-export interface Recommendation {
-  title: string;
-  description: string;
-  targetStages: string[];
-  expectedImpact: string;
-  implementationTime: 'quick-win' | 'short-term' | 'long-term';
-}
+// Removed Recommendation interface - consolidated into SolutionRecommendation
 
 export interface SolutionTool {
   id: string;
@@ -85,12 +99,29 @@ export interface SolutionTool {
 export interface SolutionRecommendation {
   title: string;
   description: string;
-  tools: string[]; // Tool IDs from lifecycle-stages.json
+  solutionType: 'technical' | 'process' | 'hybrid'; // New field to indicate solution type
+  tools: string[]; // Tool IDs from lifecycle-stages.json (empty for process solutions)
   complexity: number; // 1-5 scale
   businessValue: number; // 1-5 scale
-  implementationTime: string;
+  implementationTime: 'quick-win' | 'short-term' | 'medium-term' | 'long-term'; // Standardized
   targetPainPoints: string[];
+  targetStages: string[]; // Merged from recommendations
+  expectedImpact: string; // Merged from recommendations
   estimatedROI?: string;
+}
+
+export interface PersonaAnalysis {
+  personaId: string;
+  personaName: string;
+  painPointCount: number;
+  topConcerns: string[];
+  severityBreakdown: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+  affectedStages: string[];
+  specificRecommendations: string[];
 }
 
 export interface PainPointAnalysis {
@@ -98,7 +129,7 @@ export interface PainPointAnalysis {
   severityDistribution: SeverityByStage[];
   rootCauses: RootCause[];
   priorityMatrix: PriorityItem[];
-  recommendations: Recommendation[];
-  solutionMatrix: SolutionRecommendation[];
+  solutionMatrix: SolutionRecommendation[]; // Now contains all solutions (tech & process)
   summary: string;
+  personaAnalysis?: PersonaAnalysis[];
 }

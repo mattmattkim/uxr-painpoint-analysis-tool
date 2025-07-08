@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { StageInfo, PainPoint, Stage } from '../types';
+import React, { useRef } from 'react';
+import { StageInfo, PainPoint, Stage, Persona } from '../types';
 import PainPointCard from './PainPointCard';
 import PainPointStack from './PainPointStack';
 
@@ -22,6 +22,7 @@ interface LifecycleStageProps {
   setDraggedElement: (element: HTMLElement | null) => void;
   isGrouped?: boolean;
   onDeletePainPoint: (id: string, stage: Stage) => void;
+  personas?: Persona[];
 }
 
 export default function LifecycleStage({
@@ -33,10 +34,11 @@ export default function LifecycleStage({
   onDrop,
   onDragEnter,
   onDragLeave,
-  draggedElement,
+  // draggedElement is passed but not used in this component
   setDraggedElement,
   isGrouped = false,
   onDeletePainPoint,
+  personas = [],
 }: LifecycleStageProps) {
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +92,7 @@ export default function LifecycleStage({
               count={group.count}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              onDelete={(id) => onDeletePainPoint(id, stage.id)}
             />
           ))
         ) : (
@@ -100,6 +103,7 @@ export default function LifecycleStage({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDelete={(id) => onDeletePainPoint(id, stage.id)}
+              persona={personas.find(p => p.id === painPoint.personaId)}
             />
           ))
         )}

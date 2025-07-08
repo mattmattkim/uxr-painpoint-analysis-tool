@@ -1,35 +1,44 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PainPoint, Stage } from '../types';
+import { PainPoint, Stage, Persona } from '../types';
+import lifecycleConfig from '../lifecycle-stages.json';
 
 interface PainPointModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (painPoint: PainPoint) => void;
   initialStage?: Stage;
+  personas?: Persona[];
 }
 
-const stages: { value: Stage; label: string }[] = [
-  { value: 'requirements', label: 'Requirements Gathering' },
-  { value: 'alignment', label: 'Stakeholder Alignment' },
-  { value: 'creation', label: 'Initial Creation' },
-  { value: 'review', label: 'Internal Review' },
-  { value: 'presentation', label: 'Client Presentation' },
-  { value: 'negotiation', label: 'Negotiation & Revisions' },
-  { value: 'signature', label: 'Signature Collection' },
-  { value: 'handoff', label: 'Handoff to Delivery' },
-  { value: 'tracking', label: 'Project Tracking' },
-  { value: 'retrospective', label: 'Retrospective' },
-];
+const stages: { value: Stage; label: string }[] = lifecycleConfig.stages.map(stage => ({
+  value: stage.id as Stage,
+  label: stage.title
+}));
 
-export default function PainPointModal({ isOpen, onClose, onSubmit, initialStage }: PainPointModalProps) {
+export default function PainPointModal({ isOpen, onClose, onSubmit, initialStage, personas = [] }: PainPointModalProps) {
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const [formData, setFormData] = useState<PainPoint>({
     title: '',
     details: '',
     severity: 'medium',
     source: '',
     stage: initialStage || 'requirements',
+    personaId: '',
   });
 
   useEffect(() => {
@@ -51,6 +60,7 @@ export default function PainPointModal({ isOpen, onClose, onSubmit, initialStage
         severity: 'medium',
         source: '',
         stage: initialStage || 'requirements',
+        personaId: '',
       });
       onClose();
     }
@@ -92,6 +102,17 @@ export default function PainPointModal({ isOpen, onClose, onSubmit, initialStage
             value={formData.source}
             onChange={(e) => setFormData({ ...formData, source: e.target.value })}
           />
+          <select
+            value={formData.personaId}
+            onChange={(e) => setFormData({ ...formData, personaId: e.target.value })}
+          >
+            <option value="">Select persona (optional)</option>
+            {personas.map(persona => (
+              <option key={persona.id} value={persona.id}>
+                {persona.name} - {persona.role}
+              </option>
+            ))}
+          </select>
           <select
             value={formData.stage}
             onChange={(e) => setFormData({ ...formData, stage: e.target.value as Stage })}

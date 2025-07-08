@@ -10,6 +10,7 @@ interface PainPointStackProps {
   count: number;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
+  onDelete: (id: string) => void;
 }
 
 export default function PainPointStack({
@@ -18,6 +19,7 @@ export default function PainPointStack({
   count,
   onDragStart,
   onDragEnd,
+  onDelete,
 }: PainPointStackProps) {
   const [isFanned, setIsFanned] = useState(false);
   const [fanDirection, setFanDirection] = useState<'left' | 'right'>('right');
@@ -65,6 +67,7 @@ export default function PainPointStack({
         painPoint={mainPainPoint}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        onDelete={onDelete}
       />
     );
   }
@@ -79,6 +82,7 @@ export default function PainPointStack({
         painPoint={mainPainPoint}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        onDelete={onDelete}
       />
       {subPoints.map((subPoint, index) => (
         <PainPointCard
@@ -86,6 +90,7 @@ export default function PainPointStack({
           painPoint={subPoint}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
+          onDelete={onDelete}
         />
       ))}
       <div className="stack-count" onClick={toggleFan}>

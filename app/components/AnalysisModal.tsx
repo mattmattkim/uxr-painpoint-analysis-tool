@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { PainPointAnalysis, Theme, SeverityByStage, Recommendation } from '../types';
+import React, { useState } from 'react';
+import { PainPointAnalysis } from '../types';
 import lifecycleConfig from '../lifecycle-stages.json';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import Matrix from './Matrix';
+import SeverityBars from './SeverityBars';
 
 interface AnalysisModalProps {
   isOpen: boolean;
@@ -16,8 +18,28 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
 
   if (!isOpen) return null;
 
+  const normalizeStageId = (stageId: string): string => {
+    // Map of underscore-formatted IDs to proper IDs
+    const stageMapping: { [key: string]: string } = {
+      'requirements_gathering': 'requirements',
+      'stakeholder_alignment': 'alignment',
+      'initial_sow_creation': 'creation',
+      'internal_review': 'review',
+      'negotiation_revisions': 'negotiation',
+      'signature_collection': 'signature',
+      'procurement': 'procurement',
+      'handoff_to_delivery': 'handoff',
+      'project_tracking': 'tracking',
+      'retrospective': 'retrospective'
+    };
+    
+    return stageMapping[stageId] || stageId;
+  };
+
   const getStageTitle = (stageId: string) => {
-    const stage = lifecycleConfig.stages.find(s => s.id === stageId);
+    // First normalize the stage ID
+    const normalizedId = normalizeStageId(stageId);
+    const stage = lifecycleConfig.stages.find(s => s.id === normalizedId);
     return stage?.title || stageId;
   };
 
@@ -30,15 +52,6 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'immediate': return '#dc2626';
-      case 'high': return '#f59e0b';
-      case 'medium': return '#3b82f6';
-      case 'low': return '#10b981';
-      default: return '#6b7280';
-    }
-  };
 
   const getSolutionColor = (businessValue: number, complexity: number) => {
     // Quick Tech Wins (High Value, Low Complexity) - Green
@@ -101,7 +114,6 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
       // Get all sections
       const sections = modalClone.querySelectorAll('.analysis-section');
       let currentY = margin;
-      let pageNumber = 1;
       
       // Process each section separately
       for (let i = 0; i < sections.length; i++) {
@@ -129,12 +141,10 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
         if (currentY + Math.min(imgHeight, 100) + buffer > pageHeight - margin && currentY > margin) {
           pdf.addPage();
           currentY = margin;
-          pageNumber++;
         }
         
         // If section is larger than a page, we need to split it
         if (imgHeight > contentHeight) {
-          const img = canvas.toDataURL('image/png');
           let remainingHeight = imgHeight;
           let sourceY = 0;
           
@@ -179,7 +189,6 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
             if (remainingHeight > 0) {
               pdf.addPage();
               currentY = margin;
-              pageNumber++;
             }
           }
         } else {
@@ -264,37 +273,54 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
               <section className="analysis-section pdf-keep-together">
                 <h3>Severity Distribution by Stage</h3>
                 <div className="severity-chart">
-                  {analysis.severityDistribution.map((dist, idx) => (
-                    <div key={idx} className="severity-row">
-                      <div className="stage-label">{getStageTitle(dist.stage)}</div>
-                      <div className="severity-bars">
-                        <div 
-                          className="severity-bar high" 
-                          style={{ width: `${(dist.high / (dist.high + dist.medium + dist.low)) * 100}%` }}
-                          title={`High: ${dist.high}`}
-                        >
-                          {dist.high > 0 && dist.high}
+                  {analysis.severityDistribution.map((dist, idx) => {
+                    const total = dist.high + dist.medium + dist.low;
+                    const hasData = total > 0;
+                    
+                    return (
+                      <div key={idx} className="severity-row">
+                        <div className="stage-label">{getStageTitle(dist.stage)}</div>
+                        <div className="severity-bars">
+                          {hasData ? (
+                            <>
+                              {dist.high > 0 && (
+                                <div 
+                                  className="severity-bar high" 
+                                  style={{ width: `${(dist.high / total) * 100}%` }}
+                                  title={`High: ${dist.high}`}
+                                >
+                                  {dist.high}
+                                </div>
+                              )}
+                              {dist.medium > 0 && (
+                                <div 
+                                  className="severity-bar medium" 
+                                  style={{ width: `${(dist.medium / total) * 100}%` }}
+                                  title={`Medium: ${dist.medium}`}
+                                >
+                                  {dist.medium}
+                                </div>
+                              )}
+                              {dist.low > 0 && (
+                                <div 
+                                  className="severity-bar low" 
+                                  style={{ width: `${(dist.low / total) * 100}%` }}
+                                  title={`Low: ${dist.low}`}
+                                >
+                                  {dist.low}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="no-data">No pain points</div>
+                          )}
                         </div>
-                        <div 
-                          className="severity-bar medium" 
-                          style={{ width: `${(dist.medium / (dist.high + dist.medium + dist.low)) * 100}%` }}
-                          title={`Medium: ${dist.medium}`}
-                        >
-                          {dist.medium > 0 && dist.medium}
-                        </div>
-                        <div 
-                          className="severity-bar low" 
-                          style={{ width: `${(dist.low / (dist.high + dist.medium + dist.low)) * 100}%` }}
-                          title={`Low: ${dist.low}`}
-                        >
-                          {dist.low > 0 && dist.low}
+                        <div className="criticality-score">
+                          Score: {dist.criticalityScore.toFixed(1)}
                         </div>
                       </div>
-                      <div className="criticality-score">
-                        Score: {dist.criticalityScore.toFixed(1)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
 
@@ -324,52 +350,30 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
                 </div>
               </section>
 
-              {/* Priority Matrix */}
-              <section className="analysis-section pdf-keep-together">
+              {/* Priority Matrix - Hidden as per user request */}
+              {/* <section className="analysis-section pdf-keep-together">
                 <h3>Priority Matrix</h3>
                 <div className="priority-matrix pdf-no-break">
-                  <div className="matrix-grid pdf-no-break">
-                    <div className="matrix-axes">
-                      <div className="y-axis">
-                        <span className="axis-label">High Impact</span>
-                        <div className="axis-line"></div>
-                        <span className="axis-label">Low Impact</span>
-                      </div>
-                      <div className="x-axis">
-                        <span className="axis-label">Low Effort</span>
-                        <div className="axis-line"></div>
-                        <span className="axis-label">High Effort</span>
-                      </div>
-                    </div>
-                    <div className="matrix-quadrants">
-                      <div className="quadrant q1">
-                        <span className="quadrant-label">Quick Wins</span>
-                      </div>
-                      <div className="quadrant q2">
-                        <span className="quadrant-label">Major Projects</span>
-                      </div>
-                      <div className="quadrant q3">
-                        <span className="quadrant-label">Fill Ins</span>
-                      </div>
-                      <div className="quadrant q4">
-                        <span className="quadrant-label">Thankless Tasks</span>
-                      </div>
-                      {analysis.priorityMatrix.map((item, idx) => (
-                        <div 
-                          key={idx}
-                          className="matrix-item"
-                          style={{
-                            left: `${((item.effort - 1) / 4) * 100}%`,
-                            top: `${((5 - item.impact) / 4) * 100}%`,
-                            backgroundColor: getPriorityColor(item.priority)
-                          }}
-                          title={`${item.title}\n${item.rationale}`}
-                        >
-                          <span className="matrix-item-label">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <Matrix
+                    items={analysis.priorityMatrix.map((item, idx) => ({
+                      x: item.effort,
+                      y: item.impact,
+                      color: getPriorityColor(item.priority),
+                      label: idx + 1,
+                      title: `${item.title}\n${item.rationale}`
+                    }))}
+                    quadrants={{
+                      q1: { label: 'Quick Wins' },
+                      q2: { label: 'Major Projects' },
+                      q3: { label: 'Fill Ins' },
+                      q4: { label: 'Thankless Tasks' }
+                    }}
+                    axes={{
+                      x: { low: 'Low Effort', high: 'High Effort' },
+                      y: { low: 'Low Impact', high: 'High Impact' }
+                    }}
+                    className="pdf-no-break"
+                  />
                   <div className="priority-legend">
                     {analysis.priorityMatrix.map((item, idx) => (
                       <div key={idx} className="priority-item pdf-no-break">
@@ -384,54 +388,32 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
                     ))}
                   </div>
                 </div>
-              </section>
+              </section> */}
 
               {/* Solution Matrix */}
               <section className="analysis-section pdf-keep-together">
-                <h3>Technology Solution Matrix</h3>
+                <h3>Solution Matrix</h3>
                 <div className="solution-matrix pdf-no-break">
-                  <div className="solution-grid pdf-no-break">
-                    <div className="solution-axes">
-                      <div className="y-axis">
-                        <span className="axis-label">High Business Value</span>
-                        <div className="axis-line"></div>
-                        <span className="axis-label">Low Business Value</span>
-                      </div>
-                      <div className="x-axis">
-                        <span className="axis-label">Low Complexity</span>
-                        <div className="axis-line"></div>
-                        <span className="axis-label">High Complexity</span>
-                      </div>
-                    </div>
-                    <div className="solution-quadrants">
-                      <div className="quadrant q1">
-                        <span className="quadrant-label">Quick Tech Wins</span>
-                      </div>
-                      <div className="quadrant q2">
-                        <span className="quadrant-label">Strategic Initiatives</span>
-                      </div>
-                      <div className="quadrant q3">
-                        <span className="quadrant-label">Nice-to-Haves</span>
-                      </div>
-                      <div className="quadrant q4">
-                        <span className="quadrant-label">Complex Low-Value</span>
-                      </div>
-                      {analysis.solutionMatrix?.map((solution, idx) => (
-                        <div 
-                          key={idx}
-                          className="solution-item"
-                          style={{
-                            left: `${((solution.complexity - 1) / 4) * 100}%`,
-                            top: `${((5 - solution.businessValue) / 4) * 100}%`,
-                            backgroundColor: getSolutionColor(solution.businessValue, solution.complexity)
-                          }}
-                          title={`${solution.title}\n${solution.description}`}
-                        >
-                          <span className="solution-item-label">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <Matrix
+                    items={analysis.solutionMatrix?.map((solution, idx) => ({
+                      x: solution.complexity,
+                      y: solution.businessValue,
+                      color: getSolutionColor(solution.businessValue, solution.complexity),
+                      label: idx + 1,
+                      title: `${solution.title}\n${solution.description}`
+                    })) || []}
+                    quadrants={{
+                      q1: { label: 'Quick Tech Wins' },
+                      q2: { label: 'Strategic Initiatives' },
+                      q3: { label: 'Nice-to-Haves' },
+                      q4: { label: 'Complex Low-Value' }
+                    }}
+                    axes={{
+                      x: { low: 'Low Complexity', high: 'High Complexity' },
+                      y: { low: 'Low Business Value', high: 'High Business Value' }
+                    }}
+                    className="solution-grid pdf-no-break"
+                  />
                   <div className="solution-legend">
                     {analysis.solutionMatrix?.map((solution, idx) => (
                       <div key={idx} className="solution-item-detail pdf-no-break">
@@ -439,22 +421,47 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
                           {idx + 1}
                         </span>
                         <div className="solution-item-content">
-                          <strong>{solution.title}</strong>
+                          <div className="solution-header">
+                            <strong>{solution.title}</strong>
+                            <span className={`solution-type-badge ${solution.solutionType}`}>
+                              {solution.solutionType}
+                            </span>
+                          </div>
                           <p className="solution-description">{solution.description}</p>
+                          
+                          {/* Expected Impact */}
+                          <div className="solution-impact">
+                            <strong>Expected Impact:</strong> {solution.expectedImpact}
+                          </div>
+                          
+                          {/* Target Stages */}
+                          <div className="target-stages">
+                            <strong>Target Stages:</strong>
+                            {solution.targetStages?.map(stage => (
+                              <span key={stage} className="stage-tag">{getStageTitle(stage)}</span>
+                            ))}
+                          </div>
+                          
                           <div className="solution-meta">
-                            <div className="solution-tools">
-                              <strong>Tools:</strong>
-                              {solution.tools.map(toolId => {
-                                const tool = lifecycleConfig.tools?.find(t => t.id === toolId);
-                                return tool ? (
-                                  <span key={toolId} className="tool-tag">{tool.name}</span>
-                                ) : null;
-                              })}
-                            </div>
+                            {/* Tools - only show if there are tools */}
+                            {solution.tools && solution.tools.length > 0 && (
+                              <div className="solution-tools">
+                                <strong>Tools:</strong>
+                                {solution.tools.map(toolId => {
+                                  const tool = lifecycleConfig.tools?.find(t => t.id === toolId);
+                                  return tool ? (
+                                    <span key={toolId} className="tool-tag">{tool.name}</span>
+                                  ) : null;
+                                })}
+                              </div>
+                            )}
                             <div className="solution-timing">
-                              <span className="timing-badge">{solution.implementationTime}</span>
+                              <span className={`timing-badge ${solution.implementationTime}`}>
+                                {solution.implementationTime.replace('-', ' ')}
+                              </span>
                             </div>
                           </div>
+                          
                           {solution.estimatedROI && (
                             <div className="solution-roi">
                               <strong>ROI:</strong> {solution.estimatedROI}
@@ -467,32 +474,60 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
                 </div>
               </section>
 
-              {/* Recommendations */}
-              <section className="analysis-section pdf-keep-together">
-                <h3>Recommendations</h3>
-                <div className="recommendations pdf-keep-together">
-                  {analysis.recommendations.map((rec, idx) => (
-                    <div key={idx} className="recommendation-card pdf-no-break">
-                      <div className="rec-header">
-                        <h4>{rec.title}</h4>
-                        <span className={`time-badge ${rec.implementationTime}`}>
-                          {rec.implementationTime.replace('-', ' ')}
-                        </span>
+              {/* Persona Analysis */}
+              {analysis.personaAnalysis && analysis.personaAnalysis.length > 0 && (
+                <section className="analysis-section pdf-keep-together">
+                  <h3>Analysis by Persona</h3>
+                  <div className="persona-analysis-grid">
+                    {analysis.personaAnalysis.map((personaData, idx) => (
+                      <div key={idx} className="persona-analysis-card pdf-no-break">
+                        <div className="persona-analysis-header">
+                          <h4>{personaData.personaName}</h4>
+                          <span className="pain-point-count">{personaData.painPointCount} pain points</span>
+                        </div>
+                        
+                        <div className="severity-breakdown">
+                          <h5>Severity Breakdown</h5>
+                          <SeverityBars
+                            high={personaData.severityBreakdown?.high ?? 0}
+                            medium={personaData.severityBreakdown?.medium ?? 0}
+                            low={personaData.severityBreakdown?.low ?? 0}
+                            total={personaData.painPointCount}
+                          />
+                        </div>
+                        
+                        <div className="top-concerns">
+                          <h5>Top Concerns</h5>
+                          <ul>
+                            {personaData.topConcerns.map((concern, i) => (
+                              <li key={i}>{concern}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        
+                        <div className="affected-stages">
+                          <h5>Affected Stages</h5>
+                          <div className="stage-tags">
+                            {personaData.affectedStages.map(stage => (
+                              <span key={stage} className="stage-tag">{getStageTitle(stage)}</span>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="specific-recommendations">
+                          <h5>Targeted Recommendations</h5>
+                          <ul>
+                            {personaData.specificRecommendations.map((rec, i) => (
+                              <li key={i}>{rec}</li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
-                      <p>{rec.description}</p>
-                      <div className="rec-impact">
-                        <strong>Expected Impact:</strong> {rec.expectedImpact}
-                      </div>
-                      <div className="target-stages">
-                        <strong>Target Stages:</strong>
-                        {rec.targetStages.map(stage => (
-                          <span key={stage} className="stage-tag">{getStageTitle(stage)}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                    ))}
+                  </div>
+                </section>
+              )}
+
             </>
           ) : (
             <div className="empty-state">

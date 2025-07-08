@@ -1,0 +1,50 @@
+{
+  "painPoints": {
+    "requirements-gathering": [
+      {
+        "id": "pp1",
+        "title": "Unclear requirements from client",
+        "description": "Clients often don't know what they want",
+        "severity": "high",
+        "stage": "requirements-gathering",
+        "personaId": "persona1"
+      }
+    ],
+    "proposal": [
+      {
+        "id": "pp2",
+        "title": "Time pressure to submit proposals",
+        "description": "Very tight deadlines for proposal submission",
+        "severity": "medium",
+        "stage": "proposal",
+        "personaId": "persona1"
+      }
+    ],
+    "initial-sow-creation": [
+      {
+        "id": "pp3",
+        "title": "Template doesn't fit project needs",
+        "description": "Standard SOW templates don't cover unique project aspects",
+        "severity": "low",
+        "stage": "initial-sow-creation",
+        "personaId": "persona2"
+      }
+    ]
+  },
+  "personas": [
+    {
+      "id": "persona1",
+      "name": "Sales Manager",
+      "role": "Sales",
+      "description": "Manages client relationships and closes deals",
+      "color": "#3b82f6"
+    },
+    {
+      "id": "persona2",
+      "name": "Project Manager",
+      "role": "Delivery",
+      "description": "Manages project execution and delivery",
+      "color": "#10b981"
+    }
+  ]
+}
