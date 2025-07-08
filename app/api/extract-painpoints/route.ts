@@ -14,10 +14,10 @@ export async function POST(request: NextRequest) {
 
     const text = await file.text();
     
-    // Extract pain points using OpenAI API
-    const painPoints = await extractPainPointsFromTranscript(text, model);
+    // Extract pain points and personas using OpenAI API
+    const { painPoints, personas } = await extractPainPointsAndPersonasFromTranscript(text, model);
     
-    return NextResponse.json({ painPoints });
+    return NextResponse.json({ painPoints, personas });
   } catch (error) {
     console.error('Error processing transcript:', error);
     return NextResponse.json(
@@ -27,7 +27,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function extractPainPointsFromTranscript(transcript: string, model: string): Promise<PainPoint[]> {
+interface ExtractedPersona {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+}
+
+async function extractPainPointsAndPersonasFromTranscript(transcript: string, model: string): Promise<{ painPoints: PainPoint[], personas: ExtractedPersona[] }> {
   const apiKey = process.env.OPENAI_API_KEY;
   
   if (!apiKey) {
@@ -41,28 +48,59 @@ async function extractPainPointsFromTranscript(transcript: string, model: string
     .map(s => `- ${s.id}: ${s.title} - ${s.subtitle}`)
     .join('\n');
 
-  const prompt = `Analyze the following transcript and extract pain points related to the SOW (Statement of Work) lifecycle process. 
+  const prompt = `Analyze the following transcript and extract both user personas and pain points related to the SOW (Statement of Work) lifecycle process.
 
-For each pain point, identify:
+First, identify distinct personas from the transcript:
+- Look for different speakers, roles, or perspectives
+- Extract their characteristics, goals, and context
+- Create 1-3 distinct personas based on the content
+
+For each persona, identify:
+1. Name (can be generic like "Senior Project Manager" if no name given)
+2. Role/title
+3. Brief description
+4. Key goals (2-3 goals)
+5. Demographics if mentioned (age range, experience, department, company size)
+
+Then, for each pain point, identify:
 1. A clear, concise title (2-5 words)
 2. Detailed description of the issue
 3. Severity (high, medium, or low)
 4. Which stage of the SOW lifecycle it belongs to
+5. Which persona expressed this pain point (if identifiable)
 
 SOW Lifecycle Stages:
 ${stageDescriptions}
 
-Return the pain points as a JSON object with a single "painPoints" property containing an array. Each pain point should have: title (string), details (string), severity (string: "high", "medium", or "low"), stage (string: must be one of the stage IDs listed above), and source (string).
+Return the result as a JSON object with two properties: "personas" and "painPoints".
 
 Example format:
 {
+  "personas": [
+    {
+      "id": "persona-1",
+      "name": "Sarah Johnson",
+      "role": "Project Manager",
+      "description": "Experienced PM managing complex enterprise projects",
+      "goals": ["Streamline SOW creation", "Reduce revision cycles"],
+      "demographics": {
+        "experience": "10+ years",
+        "department": "Operations"
+      },
+      "avatar": {
+        "color": "#3b82f6",
+        "initials": "SJ"
+      }
+    }
+  ],
   "painPoints": [
     {
       "title": "Requirements unclear",
       "details": "Client requirements are often vague and change frequently",
       "severity": "high",
       "stage": "requirements",
-      "source": "Interview participant"
+      "source": "Interview participant",
+      "personaId": "persona-1"
     }
   ]
 }
@@ -81,11 +119,11 @@ ${transcript}`;
       messages: [
         {
           role: 'system',
-          content: 'You are a UX expert at analyzing user interviews and extracting pain points. Extract specific, actionable pain points from the transcript. Always respond with valid JSON containing a "painPoints" array.'
+          content: 'You are a UX expert at analyzing user interviews, identifying user personas, and extracting pain points. Extract distinct personas and specific, actionable pain points from the transcript. Always respond with valid JSON containing both "personas" and "painPoints" arrays.'
         },
         {
           role: 'user',
-          content: prompt + '\n\nRemember to return valid JSON with a "painPoints" array.'
+          content: prompt + '\n\nRemember to return valid JSON with both "personas" and "painPoints" arrays.'
         }
       ],
       response_format: { type: "json_object" }
@@ -144,13 +182,57 @@ ${transcript}`;
       }
     }
     
-    // If we found some pain points, use them
+    // If we found some pain points, use them with empty personas
     if (fallbackPainPoints.length > 0) {
-      return fallbackPainPoints;
+      return { painPoints: fallbackPainPoints, personas: [] };
     }
     
     throw new Error('Failed to parse AI response and no pain points could be extracted');
   }
+  
+  // Generate unique colors for personas
+  const PERSONA_COLORS = [
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+    '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
+  ];
+  
+  // Ensure each persona has required fields
+  interface RawPersona {
+    id?: string;
+    name?: string;
+    role?: string;
+    description?: string;
+    goals?: string[];
+    demographics?: {
+      age?: string;
+      location?: string;
+      experience?: string;
+    };
+    avatar?: {
+      initials?: string;
+      color?: string;
+    };
+  }
+  
+  const personasArray = result.personas || [];
+  const personas = personasArray.map((p: RawPersona, index: number) => {
+    const name = p.name || `User ${index + 1}`;
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    
+    return {
+      id: p.id || `persona-${Date.now()}-${index}`,
+      name,
+      role: p.role || 'Stakeholder',
+      description: p.description || '',
+      goals: p.goals || [],
+      demographics: p.demographics || {},
+      avatar: p.avatar || {
+        color: PERSONA_COLORS[index % PERSONA_COLORS.length],
+        initials
+      },
+      painPoints: []
+    };
+  });
   
   // Ensure each pain point has a unique ID and valid stage
   interface RawPainPoint {
@@ -160,6 +242,7 @@ ${transcript}`;
     severity?: string;
     stage?: string;
     source?: string;
+    personaId?: string;
   }
   
   // Handle both direct array and object with painPoints property
@@ -172,7 +255,8 @@ ${transcript}`;
     severity: pp.severity || 'medium',
     stage: (pp.stage && stages.includes(pp.stage as Stage)) ? pp.stage as Stage : 'requirements',
     source: pp.source || 'Transcript',
+    personaId: pp.personaId || undefined,
   }));
 
-  return painPoints;
+  return { painPoints, personas };
 }

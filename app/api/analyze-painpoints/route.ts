@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PainPoint } from '@/app/types';
+import { PainPoint, Persona } from '@/app/types';
 import lifecycleConfig from '@/app/lifecycle-stages.json';
 
 export async function POST(request: NextRequest) {
   try {
-    const { painPoints, model } = await request.json();
+    const { painPoints, personas, model } = await request.json();
     
     if (!painPoints || !Array.isArray(painPoints)) {
       return NextResponse.json({ error: 'Invalid pain points data' }, { status: 400 });
     }
 
     // Analyze pain points using OpenAI API
-    const analysis = await analyzePainPoints(painPoints, model || 'gpt-4o-mini');
+    const analysis = await analyzePainPoints(painPoints, personas || [], model || 'gpt-4o-mini');
     
     return NextResponse.json({ analysis });
   } catch (error) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function analyzePainPoints(painPoints: PainPoint[], model: string) {
+async function analyzePainPoints(painPoints: PainPoint[], personas: Persona[], model: string) {
   const apiKey = process.env.OPENAI_API_KEY;
   
   if (!apiKey) {
@@ -46,15 +46,24 @@ async function analyzePainPoints(painPoints: PainPoint[], model: string) {
     .map(([stage, points]) => {
       const stageInfo = lifecycleConfig.stages.find(s => s.id === stage);
       return `\n${stageInfo?.title} (${points.length} pain points):
-${points.map(pp => `- [ID: ${pp.id}] [${pp.severity}] ${pp.title}: ${pp.details || 'No details'}`).join('\n')}`;
+${points.map(pp => {
+  const persona = personas.find(p => p.id === pp.personaId);
+  const personaInfo = persona ? ` [Persona: ${persona.name}]` : '';
+  return `- [ID: ${pp.id}] [${pp.severity}]${personaInfo} ${pp.title}: ${pp.details || 'No details'}`;
+}).join('\n')}`;
     })
     .join('\n');
+
+  // Create personas summary
+  const personasSummary = personas.length > 0 
+    ? `\nUser Personas:\n${personas.map(p => `- ${p.name} (${p.role}): ${p.description || 'No description'}`).join('\n')}\n`
+    : '';
 
   // Get available tools from lifecycle config
   const availableTools = lifecycleConfig.tools || [];
   
   const prompt = `As a UX research expert, analyze the following pain points from a SOW (Statement of Work) lifecycle process and provide comprehensive insights.
-
+${personasSummary}
 Pain Points by Stage:
 ${painPointsSummary}
 
@@ -99,25 +108,34 @@ Please provide a detailed analysis in the following JSON format:
       "rationale": "Why this priority"
     }
   ],
-  "recommendations": [
-    {
-      "title": "Recommendation title",
-      "description": "Detailed recommendation",
-      "targetStages": ["stage1", "stage2"],
-      "expectedImpact": "Description of expected impact",
-      "implementationTime": "quick-win|short-term|long-term"
-    }
-  ],
   "solutionMatrix": [
     {
       "title": "Solution title",
-      "description": "How this solution addresses pain points using specific tools",
-      "tools": ["tool_id1", "tool_id2"], // Use tool IDs from the available tools list above
+      "description": "Detailed description of how this solution addresses pain points",
+      "solutionType": "technical|process|hybrid", // Indicate if this is a technical, process, or hybrid solution
+      "tools": ["tool_id1", "tool_id2"], // Use tool IDs from available tools (empty array for pure process solutions)
       "complexity": number (1.0-5.0 with decimals, where 1=simple, 5=very complex),
       "businessValue": number (1.0-5.0 with decimals, where 1=low value, 5=high value),
-      "implementationTime": "1-3 months|3-6 months|6-12 months|12+ months",
+      "implementationTime": "quick-win|short-term|medium-term|long-term",
       "targetPainPoints": ["painPointId1", "painPointId2"],
-      "estimatedROI": "Expected return on investment description"
+      "targetStages": ["stage1", "stage2"], // Which lifecycle stages this solution impacts
+      "expectedImpact": "Description of the expected positive impact on the workflow",
+      "estimatedROI": "Expected return on investment description (optional)"
+    }
+  ],
+  "personaAnalysis": [
+    {
+      "personaId": "persona-id",
+      "personaName": "Persona Name",
+      "painPointCount": number,
+      "topConcerns": ["concern1", "concern2", "concern3"] (top 3-5 pain points for this persona),
+      "severityBreakdown": {
+        "high": number,
+        "medium": number,
+        "low": number
+      },
+      "affectedStages": ["stage1", "stage2"] (which stages this persona experiences pain in),
+      "specificRecommendations": ["recommendation1", "recommendation2"] (2-3 targeted recommendations for this persona)
     }
   ],
   "summary": "Executive summary of the analysis (2-3 paragraphs)"
@@ -126,9 +144,11 @@ Please provide a detailed analysis in the following JSON format:
 Focus on:
 1. Identifying cross-cutting themes and patterns
 2. Understanding systemic vs isolated issues
-3. Providing actionable recommendations
-4. Prioritizing based on business impact
-5. Considering implementation feasibility
+3. Creating comprehensive solutions that address pain points
+4. Prioritizing based on business impact and implementation feasibility
+5. Including BOTH technical solutions (using available tools) AND process improvements
+6. Creating persona-specific analysis when personas are provided
+7. Understanding how different personas experience pain points differently
 
 IMPORTANT for Priority Matrix:
 - Create a NATURAL, REALISTIC scatter plot distribution
@@ -152,16 +172,21 @@ IMPORTANT for Priority Matrix:
 - Some items can be near quadrant centers (e.g., impact 2.5, effort 2.5)
 
 IMPORTANT for Solution Matrix:
-- Create INNOVATIVE combinations of tools to solve pain points
-- Focus on SYNERGIES between different tool categories
+- Create a COMPREHENSIVE mix of technical AND process-based solutions
+- Technical solutions should leverage available tools innovatively
+- Process solutions should focus on workflow improvements, training, documentation, etc.
+- Hybrid solutions combine both technical tools and process changes
 - Distribute solutions across the 2x2 matrix:
-  * Quick Tech Wins (top-left): High value (3.5-5.0), Low complexity (1.0-2.5)
+  * Quick Wins (top-left): High value (3.5-5.0), Low complexity (1.0-2.5)
   * Strategic Initiatives (top-right): High value (3.5-5.0), High complexity (3.5-5.0)
   * Nice-to-Haves (bottom-left): Low value (1.0-2.5), Low complexity (1.0-2.5)
   * Complex Low-Value (bottom-right): Low value (1.0-2.5), High complexity (3.5-5.0)
 - Ensure natural distribution with decimal values (e.g., 2.3, 3.7, 4.1)
-- Create 8-12 solution recommendations that leverage the available tools
-- Focus on practical, implementable solutions`;
+- Create 10-15 solution recommendations mixing technical, process, and hybrid approaches
+- Each solution should clearly state its type and expected impact
+- Implementation times: quick-win (< 1 month), short-term (1-3 months), medium-term (3-6 months), long-term (6+ months)
+
+${personas.length > 0 ? 'IMPORTANT: Include the "personaAnalysis" section since personas were provided. Analyze pain points by persona.' : 'NOTE: No personas provided, so omit the "personaAnalysis" section from the response.'}`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -214,7 +239,6 @@ IMPORTANT for Solution Matrix:
       })),
       rootCauses: [],
       priorityMatrix: [],
-      recommendations: [],
       solutionMatrix: [],
       summary: "Analysis failed to complete. Please try again."
     };
@@ -229,7 +253,15 @@ IMPORTANT for Solution Matrix:
 }
 
 // Helper function to spread clustered items in priority matrix
-function spreadPriorityMatrix(items: any[]): any[] {
+interface PriorityItem {
+  priority: string;
+  impact: number;
+  effort: number;
+  title: string;
+  rationale: string;
+}
+
+function spreadPriorityMatrix(items: PriorityItem[]): PriorityItem[] {
   const processed = [...items];
   const threshold = 0.3; // Minimum distance between items
   
@@ -242,7 +274,7 @@ function spreadPriorityMatrix(items: any[]): any[] {
   };
   
   // Process each priority group
-  Object.entries(groups).forEach(([priority, groupItems]) => {
+  Object.entries(groups).forEach(([, groupItems]) => {
     // Check for clustering within each group
     for (let i = 0; i < groupItems.length; i++) {
       for (let j = i + 1; j < groupItems.length; j++) {

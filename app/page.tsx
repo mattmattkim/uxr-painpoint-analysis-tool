@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { PainPoint, Stage, StageInfo, PainPointAnalysis } from './types';
+import { PainPoint, Stage, StageInfo, PainPointAnalysis, Persona } from './types';
 import PainPointModal from './components/PainPointModal';
 import LifecycleStage from './components/LifecycleStage';
 import AnalysisModal from './components/AnalysisModal';
+import PersonaCard from './components/PersonaCard';
+import PersonaModal from './components/PersonaModal';
 import lifecycleConfig from './lifecycle-stages.json';
 
 const stages: StageInfo[] = lifecycleConfig.stages as StageInfo[];
@@ -13,6 +15,7 @@ const STORAGE_KEY_PAIN_POINTS = 'uxr-pain-points';
 const STORAGE_KEY_ANALYSIS = 'uxr-analysis';
 const STORAGE_KEY_MODEL = 'uxr-selected-model';
 const STORAGE_KEY_ANALYSIS_HASH = 'uxr-analysis-hash';
+const STORAGE_KEY_PERSONAS = 'uxr-personas';
 
 export default function Home() {
   // Initialize with all stages from lifecycle config
@@ -22,12 +25,17 @@ export default function Home() {
   }, {} as Record<Stage, PainPoint[]>);
 
   const [painPointsByStage, setPainPointsByStage] = useState<Record<Stage, PainPoint[]>>(initialPainPointsByStage);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [selectedPersonaIds, setSelectedPersonaIds] = useState<string[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStage, setModalStage] = useState<Stage | undefined>();
   const [draggedElement, setDraggedElement] = useState<HTMLElement | null>(null);
   const [isGrouped, setIsGrouped] = useState(false);
   const draggedPainPoint = useRef<PainPoint | null>(null);
+  
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
   
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [analysis, setAnalysis] = useState<PainPointAnalysis | null>(null);
@@ -95,6 +103,12 @@ export default function Home() {
         setPainPointsByStage(parsed);
       }
 
+      const savedPersonas = localStorage.getItem(STORAGE_KEY_PERSONAS);
+      if (savedPersonas) {
+        const parsedPersonas = JSON.parse(savedPersonas);
+        setPersonas(parsedPersonas);
+      }
+
       const savedAnalysis = localStorage.getItem(STORAGE_KEY_ANALYSIS);
       if (savedAnalysis) {
         const parsedAnalysis = JSON.parse(savedAnalysis);
@@ -150,6 +164,17 @@ export default function Home() {
     }
   }, [analysis, isLoaded]);
 
+  // Save personas whenever they change
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEY_PERSONAS, JSON.stringify(personas));
+      } catch (error) {
+        console.error('Failed to save personas to localStorage:', error);
+      }
+    }
+  }, [personas, isLoaded]);
+
   // Save selected model whenever it changes
   useEffect(() => {
     if (isLoaded && selectedModel) {
@@ -178,13 +203,22 @@ export default function Home() {
         throw new Error('Failed to process transcript');
       }
 
-      const { painPoints } = await response.json();
+      const { painPoints, personas: extractedPersonas } = await response.json();
       
       // Add source information with filename
       const enhancedPainPoints = painPoints.map((pp: PainPoint) => ({
         ...pp,
         source: `${pp.source} (${file.name})`
       }));
+      
+      // Merge new personas with existing ones
+      if (extractedPersonas && extractedPersonas.length > 0) {
+        setPersonas((prevPersonas) => {
+          const existingIds = new Set(prevPersonas.map(p => p.id));
+          const newPersonas = extractedPersonas.filter((p: Persona) => !existingIds.has(p.id));
+          return [...prevPersonas, ...newPersonas];
+        });
+      }
       
       // Merge new pain points with existing ones
       setPainPointsByStage((prevState) => {
@@ -213,14 +247,17 @@ export default function Home() {
 
 
   const clearAll = () => {
-    if (confirm('Are you sure you want to clear all pain points and analysis?')) {
+    if (confirm('Are you sure you want to clear all pain points, personas, and analysis?')) {
       setPainPointsByStage(initialPainPointsByStage);
+      setPersonas([]);
+      setSelectedPersonaIds([]);
       setIsGrouped(false);
       setAnalysis(null);
       
       // Clear localStorage
       try {
         localStorage.removeItem(STORAGE_KEY_PAIN_POINTS);
+        localStorage.removeItem(STORAGE_KEY_PERSONAS);
         localStorage.removeItem(STORAGE_KEY_ANALYSIS);
         localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
       } catch (error) {
@@ -231,18 +268,56 @@ export default function Home() {
   };
 
   const exportData = () => {
-    const data = stages.reduce((acc, stage) => {
-      acc[stage.id] = painPointsByStage[stage.id];
-      return acc;
-    }, {} as Record<Stage, PainPoint[]>);
+    const data = {
+      painPoints: stages.reduce((acc, stage) => {
+        acc[stage.id] = painPointsByStage[stage.id];
+        return acc;
+      }, {} as Record<Stage, PainPoint[]>),
+      personas: personas
+    };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'sow-pain-points.json';
+    a.download = 'uxr-pain-points-personas.json';
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        
+        // Import personas
+        if (data.personas) {
+          setPersonas(data.personas);
+        }
+        
+        // Import pain points
+        if (data.painPoints) {
+          setPainPointsByStage(data.painPoints);
+        }
+        
+        // Clear cached analysis since we're loading new data
+        setAnalysis(null);
+        setLastAnalysisHash(null);
+        localStorage.removeItem(STORAGE_KEY_ANALYSIS);
+        localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
+        
+        alert('Data imported successfully!');
+      } catch (error) {
+        console.error('Error importing data:', error);
+        alert('Failed to import data. Please check the file format.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Clear input
   };
 
   const openModal = (stage?: Stage) => {
@@ -327,6 +402,62 @@ export default function Home() {
     return [];
   };
 
+  const handleAddPersona = (persona: Persona) => {
+    if (editingPersona) {
+      setPersonas(prev => prev.map(p => p.id === persona.id ? persona : p));
+    } else {
+      setPersonas(prev => [...prev, persona]);
+    }
+    setEditingPersona(null);
+  };
+
+  const handleEditPersona = (persona: Persona) => {
+    setEditingPersona(persona);
+    setIsPersonaModalOpen(true);
+  };
+
+  const handleDeletePersona = (personaId: string) => {
+    if (confirm('Are you sure you want to delete this persona? Pain points will remain but persona association will be removed.')) {
+      setPersonas(prev => prev.filter(p => p.id !== personaId));
+      setSelectedPersonaIds(prev => prev.filter(id => id !== personaId));
+      // Remove persona association from pain points
+      setPainPointsByStage(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(stage => {
+          updated[stage as Stage] = updated[stage as Stage].map(pp => 
+            pp.personaId === personaId ? { ...pp, personaId: undefined } : pp
+          );
+        });
+        return updated;
+      });
+    }
+  };
+
+  const togglePersonaSelection = (personaId: string) => {
+    setSelectedPersonaIds(prev => 
+      prev.includes(personaId)
+        ? prev.filter(id => id !== personaId)
+        : [...prev, personaId]
+    );
+  };
+
+  const getFilteredPainPoints = (stagePainPoints: PainPoint[]) => {
+    if (selectedPersonaIds.length === 0) {
+      return stagePainPoints;
+    }
+    return stagePainPoints.filter(pp => 
+      pp.personaId && selectedPersonaIds.includes(pp.personaId)
+    );
+  };
+
+  const getPersonaPainPointCount = (personaId: string) => {
+    let count = 0;
+    Object.values(painPointsByStage).forEach(stagePainPoints => {
+      count += stagePainPoints.filter(pp => pp.personaId === personaId).length;
+    });
+    return count;
+  };
+
   const analyzePainPoints = async (forceRegenerate: boolean = false) => {
     // Collect all pain points
     const allPainPoints: PainPoint[] = [];
@@ -354,7 +485,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ painPoints: allPainPoints, model: selectedModel }),
+        body: JSON.stringify({ painPoints: allPainPoints, personas, model: selectedModel }),
       });
 
       if (!response.ok) {
@@ -396,9 +527,60 @@ export default function Home() {
       </div>
 
       <div className="canvas">
+        {/* Personas Section */}
+        {personas.length > 0 && (
+          <div className="personas-section">
+            <div className="personas-header">
+              <h2>User Personas</h2>
+              <button 
+                className="btn btn-secondary btn-small"
+                onClick={() => {
+                  setEditingPersona(null);
+                  setIsPersonaModalOpen(true);
+                }}
+              >
+                + Add Persona
+              </button>
+            </div>
+            <div className="personas-grid">
+              {personas.map(persona => (
+                <PersonaCard
+                  key={persona.id}
+                  persona={persona}
+                  painPointCount={getPersonaPainPointCount(persona.id)}
+                  isSelected={selectedPersonaIds.includes(persona.id)}
+                  onSelect={() => togglePersonaSelection(persona.id)}
+                  onEdit={() => handleEditPersona(persona)}
+                  onDelete={() => handleDeletePersona(persona.id)}
+                />
+              ))}
+            </div>
+            {selectedPersonaIds.length > 0 && (
+              <div className="persona-filter-status">
+                Filtering by {selectedPersonaIds.length} persona{selectedPersonaIds.length > 1 ? 's' : ''}
+                <button 
+                  className="clear-filter-btn"
+                  onClick={() => setSelectedPersonaIds([])}
+                >
+                  Clear Filter
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="controls">
           <button className="btn" onClick={() => openModal()}>
             + Add Pain Point
+          </button>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => {
+              setEditingPersona(null);
+              setIsPersonaModalOpen(true);
+            }}
+          >
+            + Add Persona
           </button>
           <input
             type="file"
@@ -428,6 +610,19 @@ export default function Home() {
           <button className="btn btn-secondary" onClick={exportData}>
             Export Data
           </button>
+          <input
+            type="file"
+            accept=".json"
+            onChange={importData}
+            style={{ display: 'none' }}
+            id="data-import"
+          />
+          <label 
+            htmlFor="data-import" 
+            className="btn btn-secondary"
+          >
+            Import Data
+          </label>
           <div className="button-group">
             <button 
               className={needsNewAnalysis() ? "btn btn-primary" : "btn btn-secondary"} 
@@ -482,7 +677,7 @@ export default function Home() {
             <LifecycleStage
               key={stage.id}
               stage={stage}
-              painPoints={painPointsByStage[stage.id] || []}
+              painPoints={getFilteredPainPoints(painPointsByStage[stage.id] || [])}
               groupedPainPoints={isGrouped ? getGroupedPainPointsForStage() : undefined}
               onAddPainPoint={openModal}
               onDragOver={handleDragOver}
@@ -509,6 +704,7 @@ export default function Home() {
               }}
               isGrouped={isGrouped}
               onDeletePainPoint={deletePainPoint}
+              personas={personas}
             />
           ))}
         </div>
@@ -565,6 +761,17 @@ export default function Home() {
         onClose={closeModal}
         onSubmit={addPainPoint}
         initialStage={modalStage}
+        personas={personas}
+      />
+      
+      <PersonaModal
+        isOpen={isPersonaModalOpen}
+        onClose={() => {
+          setIsPersonaModalOpen(false);
+          setEditingPersona(null);
+        }}
+        onSubmit={handleAddPersona}
+        persona={editingPersona}
       />
       
       <AnalysisModal
