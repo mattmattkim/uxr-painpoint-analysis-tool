@@ -8,6 +8,7 @@ import AnalysisModal from './components/AnalysisModal';
 import PersonaCard from './components/PersonaCard';
 import PersonaModal from './components/PersonaModal';
 import lifecycleConfig from './lifecycle-stages.json';
+import { mergePersonas, manualMergePersonas, ensureUniquePersonaIds, ensurePersonaColors } from './utils/personas';
 
 const stages: StageInfo[] = lifecycleConfig.stages as StageInfo[];
 
@@ -28,6 +29,9 @@ export default function Home() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [selectedPersonaIds, setSelectedPersonaIds] = useState<string[]>([]);
   
+  // Use a ref to track personas for sequential uploads
+  const personasRef = useRef<Persona[]>([]);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStage, setModalStage] = useState<Stage | undefined>();
   const [draggedElement, setDraggedElement] = useState<HTMLElement | null>(null);
@@ -36,6 +40,8 @@ export default function Home() {
   
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<Persona | null>(null);
   
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [analysis, setAnalysis] = useState<PainPointAnalysis | null>(null);
@@ -106,7 +112,9 @@ export default function Home() {
       const savedPersonas = localStorage.getItem(STORAGE_KEY_PERSONAS);
       if (savedPersonas) {
         const parsedPersonas = JSON.parse(savedPersonas);
-        setPersonas(parsedPersonas);
+        const coloredPersonas = ensurePersonaColors(parsedPersonas);
+        setPersonas(coloredPersonas);
+        personasRef.current = coloredPersonas;
       }
 
       const savedAnalysis = localStorage.getItem(STORAGE_KEY_ANALYSIS);
@@ -166,6 +174,23 @@ export default function Home() {
 
   // Save personas whenever they change
   useEffect(() => {
+    console.log('Personas state changed:', {
+      count: personas.length,
+      personas: personas.map(p => ({ id: p.id, name: p.name, color: p.avatar?.color }))
+    });
+    
+    // Check if any personas are missing colors
+    const needsColors = personas.some(p => !p.avatar?.color);
+    if (needsColors && personas.length > 0) {
+      console.log('Found personas without colors, fixing...');
+      const fixedPersonas = ensurePersonaColors(personas);
+      setPersonas(fixedPersonas);
+      return; // Exit early to avoid infinite loop
+    }
+    
+    // Keep ref in sync with state
+    personasRef.current = personas;
+    
     if (isLoaded) {
       try {
         localStorage.setItem(STORAGE_KEY_PERSONAS, JSON.stringify(personas));
@@ -186,63 +211,11 @@ export default function Home() {
     }
   }, [selectedModel, isLoaded]);
 
+  // This function is no longer used for multiple file uploads
+  // Keeping it in case we need single file upload functionality later
   const handleFileUpload = async (file: File) => {
-    const fileId = `${file.name}-${Date.now()}`;
-    setProcessingTranscripts(prev => [...prev, {id: fileId, name: file.name}]);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('model', selectedModel);
-
-      const response = await fetch('/api/extract-painpoints', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to process transcript');
-      }
-
-      const { painPoints, personas: extractedPersonas } = await response.json();
-      
-      // Add source information with filename
-      const enhancedPainPoints = painPoints.map((pp: PainPoint) => ({
-        ...pp,
-        source: `${pp.source} (${file.name})`
-      }));
-      
-      // Merge new personas with existing ones
-      if (extractedPersonas && extractedPersonas.length > 0) {
-        setPersonas((prevPersonas) => {
-          const existingIds = new Set(prevPersonas.map(p => p.id));
-          const newPersonas = extractedPersonas.filter((p: Persona) => !existingIds.has(p.id));
-          return [...prevPersonas, ...newPersonas];
-        });
-      }
-      
-      // Merge new pain points with existing ones
-      setPainPointsByStage((prevState) => {
-        const updatedState = { ...prevState };
-        
-        enhancedPainPoints.forEach((painPoint: PainPoint) => {
-          const stage = painPoint.stage as Stage;
-          if (updatedState[stage]) {
-            updatedState[stage] = [...updatedState[stage], painPoint];
-          }
-        });
-        
-        return updatedState;
-      });
-      setIsGrouped(false);
-      // Invalidate cached analysis when new pain points are added
-      setLastAnalysisHash(null);
-      localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
-    } catch (error) {
-      console.error('Error uploading transcript:', error);
-      alert('Failed to process transcript. Please make sure you have configured your OpenAI API key.');
-    } finally {
-      setProcessingTranscripts(prev => prev.filter(t => t.id !== fileId));
-    }
+    // Single file upload logic would go here if needed
+    console.warn('handleFileUpload called but not implemented for single files');
   };
 
 
@@ -264,6 +237,8 @@ export default function Home() {
         console.error('Failed to clear localStorage:', error);
       }
       setLastAnalysisHash(null);
+      
+      console.log('All data cleared - starting fresh');
     }
   };
 
@@ -296,7 +271,7 @@ export default function Home() {
         
         // Import personas
         if (data.personas) {
-          setPersonas(data.personas);
+          setPersonas(ensurePersonaColors(data.personas));
         }
         
         // Import pain points
@@ -441,6 +416,52 @@ export default function Home() {
     );
   };
 
+  const startMergeMode = (persona: Persona) => {
+    setMergeTarget(persona);
+    setMergeMode(true);
+  };
+
+  const cancelMergeMode = () => {
+    setMergeMode(false);
+    setMergeTarget(null);
+  };
+
+  const mergePersonasWith = (secondaryPersona: Persona) => {
+    if (!mergeTarget) return;
+    
+    if (confirm(`Are you sure you want to merge "${secondaryPersona.name}" into "${mergeTarget.name}"? This will combine their information and cannot be undone.`)) {
+      const mergedPersona = manualMergePersonas(mergeTarget, secondaryPersona);
+      
+      // Update personas list
+      setPersonas(prev => prev
+        .map(p => p.id === mergeTarget.id ? mergedPersona : p)
+        .filter(p => p.id !== secondaryPersona.id)
+      );
+      
+      // Update pain points to use merged persona ID
+      setPainPointsByStage(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(stage => {
+          updated[stage as Stage] = updated[stage as Stage].map(pp => 
+            pp.personaId === secondaryPersona.id 
+              ? { ...pp, personaId: mergeTarget.id }
+              : pp
+          );
+        });
+        return updated;
+      });
+      
+      // Update selected personas
+      setSelectedPersonaIds(prev => 
+        prev.includes(secondaryPersona.id)
+          ? prev.filter(id => id !== secondaryPersona.id)
+          : prev
+      );
+      
+      cancelMergeMode();
+    }
+  };
+
   const getFilteredPainPoints = (stagePainPoints: PainPoint[]) => {
     if (selectedPersonaIds.length === 0) {
       return stagePainPoints;
@@ -451,10 +472,28 @@ export default function Home() {
   };
 
   const getPersonaPainPointCount = (personaId: string) => {
+    if (!personaId) {
+      console.warn('getPersonaPainPointCount called with no personaId');
+      return 0;
+    }
+    
     let count = 0;
     Object.values(painPointsByStage).forEach(stagePainPoints => {
       count += stagePainPoints.filter(pp => pp.personaId === personaId).length;
     });
+    
+    // Debug logging for persona pain point count
+    if (count === 0 && Object.values(painPointsByStage).some(stage => stage.length > 0)) {
+      console.log(`Zero pain points for persona ${personaId}:`, {
+        personaId,
+        allPainPointPersonaIds: Object.values(painPointsByStage)
+          .flat()
+          .map(pp => pp.personaId)
+          .filter(Boolean)
+          .filter((v, i, a) => a.indexOf(v) === i) // unique values
+      });
+    }
+    
     return count;
   };
 
@@ -530,28 +569,59 @@ export default function Home() {
         {/* Personas Section */}
         {personas.length > 0 && (
           <div className="personas-section">
+            {console.log('Rendering personas section with:', personas.map(p => ({
+              name: p.name,
+              id: p.id,
+              avatar: p.avatar,
+              color: p.avatar?.color
+            })))}
             <div className="personas-header">
               <h2>User Personas</h2>
-              <button 
-                className="btn btn-secondary btn-small"
-                onClick={() => {
-                  setEditingPersona(null);
-                  setIsPersonaModalOpen(true);
-                }}
-              >
-                + Add Persona
-              </button>
+              <div className="persona-actions">
+                <button 
+                  className="btn btn-secondary btn-small"
+                  onClick={() => {
+                    setEditingPersona(null);
+                    setIsPersonaModalOpen(true);
+                  }}
+                >
+                  + Add Persona
+                </button>
+                {personas.length > 1 && (
+                  <button 
+                    className={`btn btn-small ${mergeMode ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={mergeMode ? cancelMergeMode : () => setMergeMode(true)}
+                  >
+                    {mergeMode ? 'Cancel Merge' : 'Merge Personas'}
+                  </button>
+                )}
+              </div>
             </div>
+            {mergeMode && (
+              <div className="merge-instructions">
+                {mergeTarget ? (
+                  <p>Select a persona to merge into <strong>{mergeTarget.name}</strong>:</p>
+                ) : (
+                  <p>Click on a persona to select it as the merge target, then click on another persona to merge them.</p>
+                )}
+              </div>
+            )}
             <div className="personas-grid">
               {personas.map(persona => (
                 <PersonaCard
-                  key={persona.id}
+                  key={persona.id || `temp-${persona.name}`}
                   persona={persona}
                   painPointCount={getPersonaPainPointCount(persona.id)}
                   isSelected={selectedPersonaIds.includes(persona.id)}
-                  onSelect={() => togglePersonaSelection(persona.id)}
+                  onSelect={() => mergeMode && !mergeTarget 
+                    ? startMergeMode(persona)
+                    : togglePersonaSelection(persona.id)}
                   onEdit={() => handleEditPersona(persona)}
                   onDelete={() => handleDeletePersona(persona.id)}
+                  onMerge={mergeMode && mergeTarget?.id !== persona.id 
+                    ? () => mergePersonasWith(persona)
+                    : undefined}
+                  showMergeButton={mergeMode && mergeTarget?.id !== persona.id}
                 />
               ))}
             </div>
@@ -586,7 +656,7 @@ export default function Home() {
             type="file"
             accept=".txt,.pdf,.docx"
             multiple
-            onChange={(e) => {
+            onChange={async (e) => {
               const files = e.target.files;
               if (files) {
                 // Limit to 10 files at once to prevent overwhelming the API
@@ -594,7 +664,112 @@ export default function Home() {
                 if (files.length > 10) {
                   alert('Maximum 10 files can be uploaded at once. Only the first 10 will be processed.');
                 }
-                fileArray.forEach(file => handleFileUpload(file));
+                
+                // Accumulate all personas and pain points before updating state
+                const allNewPersonas: Persona[] = [];
+                const allNewPainPoints: PainPoint[] = [];
+                
+                // Add all files to processing queue at once
+                const processingFiles = fileArray.map(file => ({
+                  id: `${file.name}-${Date.now()}-${Math.random()}`,
+                  name: file.name
+                }));
+                setProcessingTranscripts(prev => [...prev, ...processingFiles]);
+                
+                // Process files sequentially
+                for (let i = 0; i < fileArray.length; i++) {
+                  const file = fileArray[i];
+                  const fileId = processingFiles[i].id;
+                  
+                  try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('model', selectedModel);
+
+                    const response = await fetch('/api/extract-painpoints', {
+                      method: 'POST',
+                      body: formData,
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Failed to process transcript');
+                    }
+
+                    const { painPoints, personas: extractedPersonas } = await response.json();
+                    
+                    // Debug logging
+                    console.log(`[${file.name}] Extracted from API:`, {
+                      personas: extractedPersonas?.map((p: Persona) => ({ id: p.id, name: p.name })),
+                      painPoints: painPoints?.map((pp: PainPoint) => ({ title: pp.title, personaId: pp.personaId }))
+                    });
+                    
+                    // Accumulate personas and pain points
+                    if (extractedPersonas && extractedPersonas.length > 0) {
+                      allNewPersonas.push(...extractedPersonas);
+                    }
+                    
+                    // Add source information to pain points
+                    const enhancedPainPoints = painPoints.map((pp: PainPoint) => ({
+                      ...pp,
+                      source: `${pp.source} (${file.name})`
+                    }));
+                    
+                    allNewPainPoints.push(...enhancedPainPoints);
+                    
+                  } catch (error) {
+                    console.error(`Error processing ${file.name}:`, error);
+                    alert(`Failed to process ${file.name}. Please check the console for details.`);
+                  }
+                }
+                
+                // Clear all processing files at once after all are done
+                setProcessingTranscripts(prev => 
+                  prev.filter(t => !processingFiles.some(pf => pf.id === t.id))
+                );
+                
+                // Now update state once with all accumulated data
+                if (allNewPersonas.length > 0) {
+                  console.log('Updating personas with all new personas:', {
+                    newPersonasCount: allNewPersonas.length,
+                    newPersonas: allNewPersonas.map(p => ({ id: p.id, name: p.name }))
+                  });
+                  
+                  setPersonas(prevPersonas => {
+                    const combined = [...prevPersonas, ...allNewPersonas];
+                    console.log('Before ensurePersonaColors:', combined.map(p => ({
+                      name: p.name,
+                      color: p.avatar?.color || 'no color'
+                    })));
+                    
+                    const withColors = ensurePersonaColors(combined);
+                    
+                    console.log('After ensurePersonaColors:', withColors.map(p => ({
+                      name: p.name,
+                      color: p.avatar?.color || 'no color'
+                    })));
+                    
+                    return withColors;
+                  });
+                }
+                
+                if (allNewPainPoints.length > 0) {
+                  setPainPointsByStage((prevState) => {
+                    const updatedState = { ...prevState };
+                    
+                    allNewPainPoints.forEach((painPoint: PainPoint) => {
+                      const stage = painPoint.stage as Stage;
+                      if (updatedState[stage]) {
+                        updatedState[stage] = [...updatedState[stage], painPoint];
+                      }
+                    });
+                    
+                    return updatedState;
+                  });
+                }
+                
+                setIsGrouped(false);
+                setLastAnalysisHash(null);
+                localStorage.removeItem(STORAGE_KEY_ANALYSIS_HASH);
               }
               e.target.value = ''; // Clear input to allow re-uploading same files
             }}
@@ -604,8 +779,9 @@ export default function Home() {
           <label 
             htmlFor="transcript-upload" 
             className="btn btn-secondary"
+            style={{ opacity: processingTranscripts.length > 0 ? 0.6 : 1, cursor: processingTranscripts.length > 0 ? 'wait' : 'pointer' }}
           >
-            Upload Transcript(s)
+            {processingTranscripts.length > 0 ? 'Processing...' : 'Upload Transcript(s)'}
           </label>
           <button className="btn btn-secondary" onClick={exportData}>
             Export Data
@@ -673,19 +849,31 @@ export default function Home() {
         </div>
 
         <div className="lifecycle-container" id="lifecycleContainer">
-          {stages.map((stage) => (
-            <LifecycleStage
-              key={stage.id}
-              stage={stage}
-              painPoints={getFilteredPainPoints(painPointsByStage[stage.id] || [])}
-              groupedPainPoints={isGrouped ? getGroupedPainPointsForStage() : undefined}
-              onAddPainPoint={openModal}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              draggedElement={draggedElement}
-              setDraggedElement={(el) => {
+          {stages.map((stage) => {
+            // Debug: Log personas being passed to each stage
+            const stagePainPoints = getFilteredPainPoints(painPointsByStage[stage.id] || []);
+            if (stagePainPoints.some(pp => pp.personaId)) {
+              console.log(`Stage ${stage.id} personas check:`, {
+                personasCount: personas.length,
+                painPointsWithPersona: stagePainPoints.filter(pp => pp.personaId).length,
+                personaIds: personas.map(p => p.id)
+              });
+            }
+            
+            return (
+              <LifecycleStage
+                key={stage.id}
+                stage={stage}
+                painPoints={stagePainPoints}
+                groupedPainPoints={isGrouped ? getGroupedPainPointsForStage() : undefined}
+                onAddPainPoint={openModal}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                draggedElement={draggedElement}
+                personas={personas}
+                setDraggedElement={(el) => {
                 setDraggedElement(el);
                 if (el) {
                   const painPointId = el.getAttribute('data-pain-point-id');
@@ -702,11 +890,11 @@ export default function Home() {
                   draggedPainPoint.current = null;
                 }
               }}
-              isGrouped={isGrouped}
-              onDeletePainPoint={deletePainPoint}
-              personas={personas}
-            />
-          ))}
+                isGrouped={isGrouped}
+                onDeletePainPoint={deletePainPoint}
+              />
+            );
+          })}
         </div>
 
         <div className="legend">
@@ -772,6 +960,7 @@ export default function Home() {
         }}
         onSubmit={handleAddPersona}
         persona={editingPersona}
+        existingPersonas={personas}
       />
       
       <AnalysisModal
