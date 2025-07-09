@@ -97,26 +97,26 @@ export default function PersonaCard({
       <div className="persona-stats">
         <div className="stat-item">
           <span className="stat-value">{painPointCount}</span>
-          <span className="stat-label">Pain Points</span>
+          <span className="stat-label">PAIN POINTS</span>
         </div>
         <div className="stat-item">
           <span className="stat-value" title={persona.demographics?.experience || 'Not specified'}>
             {(persona.demographics?.experience || 'N/A').substring(0, 10)}
           </span>
-          <span className="stat-label">Experience</span>
+          <span className="stat-label">EXPERIENCE</span>
         </div>
         {persona.demographics?.department && (
           <div className="stat-item">
             <span className="stat-value" title={persona.demographics.department}>
               {persona.demographics.department.substring(0, 10)}
             </span>
-            <span className="stat-label">Department</span>
+            <span className="stat-label">DEPARTMENT</span>
           </div>
         )}
       </div>
       
       <div className="persona-goals">
-        <h4>Goals</h4>
+        <h4>GOALS</h4>
         <ul>
           {persona.goals && persona.goals.length > 0 ? (
             persona.goals.slice(0, 3).map((goal, index) => (

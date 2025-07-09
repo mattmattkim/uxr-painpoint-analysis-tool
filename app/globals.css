@@ -1236,6 +1236,21 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
   color: var(--gray-900);
 }
 
+.score-explanation {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--gray-50);
+  border-radius: 8px;
+  border: 1px solid var(--gray-200);
+}
+
+.score-explanation p {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+  margin: 0;
+}
+
 /* Root Causes */
 .root-causes {
   display: grid;
@@ -1540,9 +1555,6 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
 }
 
 .solution-item-detail {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
   page-break-inside: avoid !important;
   break-inside: avoid !important;
   background: white;
@@ -1565,7 +1577,7 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
 .solution-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 8px;
 }
 
@@ -1573,6 +1585,13 @@ body:has(.pain-point-with-count.fanned-out) .lifecycle-stage {
   font-size: 0.938rem;
   color: var(--gray-900);
   flex: 1;
+}
+
+.solution-header .item-number {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  font-size: 0.75rem;
 }
 
 .solution-type-badge {

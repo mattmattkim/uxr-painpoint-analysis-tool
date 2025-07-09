@@ -40,7 +40,20 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
     // First normalize the stage ID
     const normalizedId = normalizeStageId(stageId);
     const stage = lifecycleConfig.stages.find(s => s.id === normalizedId);
-    return stage?.title || stageId;
+    
+    if (stage) {
+      return stage.title;
+    }
+    
+    // If stage not found, convert camelCase/snake_case to proper spacing
+    return stageId
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .replace(/_/g, ' ') // Replace underscores with spaces
+      .replace(/\s+/g, ' ') // Clean up multiple spaces
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const getSeverityColor = (severity: string) => {
@@ -322,6 +335,11 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
                     );
                   })}
                 </div>
+                <div className="score-explanation">
+                  <p><strong>Note:</strong> The criticality score (0-10) is calculated based on both severity and volume of pain points. 
+                  A stage with fewer high-severity issues may score higher than a stage with many low-severity issues, 
+                  as the score prioritizes business impact over quantity.</p>
+                </div>
               </section>
 
               {/* Root Causes */}
@@ -417,11 +435,11 @@ export default function AnalysisModal({ isOpen, onClose, analysis, isLoading }: 
                   <div className="solution-legend">
                     {analysis.solutionMatrix?.map((solution, idx) => (
                       <div key={idx} className="solution-item-detail pdf-no-break">
-                        <span className="item-number" style={{ backgroundColor: getSolutionColor(solution.businessValue, solution.complexity) }}>
-                          {idx + 1}
-                        </span>
                         <div className="solution-item-content">
                           <div className="solution-header">
+                            <span className="item-number" style={{ backgroundColor: getSolutionColor(solution.businessValue, solution.complexity) }}>
+                              {idx + 1}
+                            </span>
                             <strong>{solution.title}</strong>
                             <span className={`solution-type-badge ${solution.solutionType}`}>
                               {solution.solutionType}
