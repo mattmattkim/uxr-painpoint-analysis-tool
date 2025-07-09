@@ -2087,60 +2087,68 @@ select:focus-visible {
   background: var(--success);
 }
 
-/* Persona Styles */
+/* Persona Styles - Apple-Inspired Design */
 .personas-section {
   margin: 32px 0;
-  padding: 24px;
-  background: var(--gray-50);
-  border-radius: 16px;
-  border: 1px solid var(--gray-200);
 }
 
 .personas-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .personas-header h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   color: var(--gray-900);
   margin: 0;
+  letter-spacing: -0.03em;
 }
 
 .personas-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 .persona-card {
   background: white;
-  border: 1px solid var(--gray-200);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   padding: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .persona-card:hover {
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
 }
 
 .persona-card.selected {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  box-shadow: 
+    0 0 0 2px var(--primary),
+    0 6px 20px rgba(0, 122, 255, 0.12);
+}
+
+.persona-card.selected:hover {
+  transform: translateY(-2px);
 }
 
 .persona-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .persona-avatar {
@@ -2153,6 +2161,8 @@ select:focus-visible {
   color: white;
   font-weight: 600;
   font-size: 18px;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
 }
 
 .persona-info {
@@ -2160,21 +2170,23 @@ select:focus-visible {
 }
 
 .persona-info h3 {
-  margin: 0;
-  font-size: 1.125rem;
+  margin: 0 0 2px 0;
+  font-size: 18px;
   font-weight: 600;
   color: var(--gray-900);
+  letter-spacing: -0.01em;
 }
 
 .persona-role {
   color: var(--gray-600);
-  font-size: 0.875rem;
+  font-size: 14px;
   margin: 0;
+  font-weight: 400;
 }
 
 .persona-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .persona-action-btn {
@@ -2182,7 +2194,7 @@ select:focus-visible {
   height: 32px;
   border: none;
   background: transparent;
-  color: var(--gray-500);
+  color: var(--gray-400);
   cursor: pointer;
   border-radius: 6px;
   display: flex;
@@ -2197,62 +2209,94 @@ select:focus-visible {
 }
 
 .persona-description {
-  font-size: 0.875rem;
+  font-size: 14px;
   color: var(--gray-600);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   line-height: 1.5;
+  min-height: 80px;
 }
 
 .persona-stats {
   display: flex;
-  gap: 20px;
-  margin-bottom: 12px;
+  gap: 0;
+  margin: 16px 0;
+  padding: 16px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
+  flex: 1;
+  padding: 0 8px;
+  position: relative;
+}
+
+.stat-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 32px;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .stat-value {
-  font-size: 1.25rem;
+  font-size: 16px;
   font-weight: 600;
   color: var(--gray-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  line-height: 1.2;
+  margin-bottom: 2px;
 }
 
 .stat-label {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--gray-500);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
 .persona-goals {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--gray-200);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .persona-goals h4 {
-  font-size: 0.875rem;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--gray-500);
   margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .persona-goals ul {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
 
 .persona-goals li {
-  font-size: 0.813rem;
-  color: var(--gray-600);
-  padding: 4px 0;
+  font-size: 14px;
+  color: var(--gray-700);
   padding-left: 16px;
   position: relative;
+  line-height: 1.4;
 }
 
 .persona-goals li:before {
@@ -2260,6 +2304,16 @@ select:focus-visible {
   position: absolute;
   left: 0;
   color: var(--gray-400);
+  font-weight: 700;
+}
+
+.persona-goals li.empty-goal {
+  height: 20px;
+  position: relative;
+}
+
+.persona-goals li.empty-goal:before {
+  color: var(--gray-300);
 }
 
 /* Persona Modal Styles */
@@ -2441,7 +2495,7 @@ select:focus-visible {
 
 .btn-small {
   padding: 6px 12px;
-  font-size: 0.875rem;
+  font-size: 13px;
 }
 
 /* Persona Analysis Styles */

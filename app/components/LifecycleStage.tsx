@@ -100,10 +100,12 @@ export default function LifecycleStage({
             const persona = personas.find(p => p.id === painPoint.personaId);
             
             // Debug logging only for pain points with personaId
-            if (painPoint.personaId && !persona) {
-              console.warn(`Persona not found for pain point "${painPoint.title}":`, {
+            if (painPoint.personaId) {
+              console.log(`Looking up persona for pain point "${painPoint.title}":`, {
                 personaId: painPoint.personaId,
-                availablePersonas: personas.map(p => ({ id: p.id, name: p.name }))
+                found: !!persona,
+                persona: persona ? { id: persona.id, name: persona.name, color: persona.avatar?.color } : null,
+                availablePersonas: personas.map(p => ({ id: p.id, name: p.name, color: p.avatar?.color }))
               });
             }
             

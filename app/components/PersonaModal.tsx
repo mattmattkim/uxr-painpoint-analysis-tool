@@ -2,20 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { Persona } from '../types';
+import { PERSONA_COLORS, getNextAvailableColor } from '../utils/personas';
 
 interface PersonaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (persona: Persona) => void;
   persona?: Persona | null;
+  existingPersonas?: Persona[];
 }
 
-const PERSONA_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
-];
-
-export default function PersonaModal({ isOpen, onClose, onSubmit, persona }: PersonaModalProps) {
+export default function PersonaModal({ isOpen, onClose, onSubmit, persona, existingPersonas = [] }: PersonaModalProps) {
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -65,12 +62,12 @@ export default function PersonaModal({ isOpen, onClose, onSubmit, persona }: Per
           companySize: ''
         },
         avatar: {
-          color: PERSONA_COLORS[Math.floor(Math.random() * PERSONA_COLORS.length)],
+          color: getNextAvailableColor(existingPersonas),
           initials: ''
         }
       });
     }
-  }, [persona, isOpen]);
+  }, [persona, isOpen, existingPersonas]);
 
   useEffect(() => {
     if (formData.name) {
@@ -92,8 +89,17 @@ export default function PersonaModal({ isOpen, onClose, onSubmit, persona }: Per
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name && formData.role) {
+      // Generate UUID v4 for new personas
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      };
+      
       const personaData: Persona = {
-        id: persona?.id || Date.now().toString() + Math.random().toString(),
+        id: persona?.id || generateUUID(),
         name: formData.name,
         role: formData.role,
         description: formData.description,

@@ -10,6 +10,8 @@ interface PersonaCardProps {
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onMerge?: () => void;
+  showMergeButton?: boolean;
 }
 
 export default function PersonaCard({ 
@@ -18,8 +20,17 @@ export default function PersonaCard({
   isSelected, 
   onSelect, 
   onEdit, 
-  onDelete 
+  onDelete,
+  onMerge,
+  showMergeButton = false
 }: PersonaCardProps) {
+  // Debug: Log persona color
+  console.log(`PersonaCard for ${persona.name}:`, {
+    avatar: persona.avatar,
+    color: persona.avatar?.color,
+    fallbackColor: '#3b82f6'
+  });
+  
   return (
     <div 
       className={`persona-card ${isSelected ? 'selected' : ''}`}
@@ -49,6 +60,20 @@ export default function PersonaCard({
               <path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"/>
             </svg>
           </button>
+          {showMergeButton && onMerge && (
+            <button 
+              className="persona-action-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMerge();
+              }}
+              title="Merge with this persona"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1h-3v3a.5.5 0 01-1 0v-3h-3a.5.5 0 010-1h3v-3A.5.5 0 018 4z"/>
+              </svg>
+            </button>
+          )}
           <button 
             className="persona-action-btn"
             onClick={(e) => {
@@ -65,33 +90,47 @@ export default function PersonaCard({
         </div>
       </div>
       
-      {persona.description && (
-        <p className="persona-description">{persona.description}</p>
-      )}
+      <p className="persona-description">
+        {persona.description || 'No description available'}
+      </p>
       
       <div className="persona-stats">
         <div className="stat-item">
           <span className="stat-value">{painPointCount}</span>
           <span className="stat-label">Pain Points</span>
         </div>
-        {persona.demographics?.experience && (
+        <div className="stat-item">
+          <span className="stat-value" title={persona.demographics?.experience || 'Not specified'}>
+            {(persona.demographics?.experience || 'N/A').substring(0, 10)}
+          </span>
+          <span className="stat-label">Experience</span>
+        </div>
+        {persona.demographics?.department && (
           <div className="stat-item">
-            <span className="stat-value">{persona.demographics.experience}</span>
-            <span className="stat-label">Experience</span>
+            <span className="stat-value" title={persona.demographics.department}>
+              {persona.demographics.department.substring(0, 10)}
+            </span>
+            <span className="stat-label">Department</span>
           </div>
         )}
       </div>
       
-      {persona.goals && persona.goals.length > 0 && (
-        <div className="persona-goals">
-          <h4>Goals</h4>
-          <ul>
-            {persona.goals.slice(0, 3).map((goal, index) => (
+      <div className="persona-goals">
+        <h4>Goals</h4>
+        <ul>
+          {persona.goals && persona.goals.length > 0 ? (
+            persona.goals.slice(0, 3).map((goal, index) => (
               <li key={index}>{goal}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+            ))
+          ) : (
+            <>
+              <li className="empty-goal"></li>
+              <li className="empty-goal"></li>
+              <li className="empty-goal"></li>
+            </>
+          )}
+        </ul>
+      </div>
     </div>
   );
 }
